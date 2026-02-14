@@ -37,6 +37,7 @@ class GuestService {
         {
           ...data,
           approved: autoApprove,
+          approved_by: autoApprove ? creator.id : null,
           referred_by: autoApprove ? null : creator.id,
           created_by: creator.id,
           updated_by: creator.id,
@@ -110,6 +111,29 @@ class GuestService {
     if (!guest) {
       throw new ApiError(404, "Guest not found");
     }
+
+    return guest;
+  }
+
+  //--------------------------------
+  // APPROVE Guest
+  //--------------------------------
+  static async approveGuest(id: string, approverId: string): Promise<Guest> {
+    const guest = await Guest.findByPk(id);
+
+    if (!guest) {
+      throw new ApiError(404, "Guest not found");
+    }
+
+    if (guest.approved) {
+      throw new ApiError(400, "Guest already approved");
+    }
+
+    await guest.update({
+      approved: true,
+      approved_by: approverId,
+      updated_by: approverId,
+    });
 
     return guest;
   }

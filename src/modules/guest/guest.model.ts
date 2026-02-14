@@ -18,6 +18,7 @@ class Guest
   declare phone: string | null;
 
   declare approved: boolean;
+  declare approved_by: string | null;
 
   declare referred_by: string | null;
   declare profile_image: string | null;
@@ -78,6 +79,11 @@ Guest.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
+    },
+
+    approved_by: {
+      type: DataTypes.UUID,
+      allowNull: true,
     },
 
     referred_by: {

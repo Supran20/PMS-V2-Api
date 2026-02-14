@@ -49,6 +49,26 @@ export class GuestController {
     }
   }
 
+  static async approve(req: AuthRequest, res: Response) {
+    try {
+      const guest = await GuestService.approveGuest(
+        String(req.params.id),
+        req.user.id,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Guest approved successfully",
+        data: guest,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   static async getBySlug(req: AuthRequest, res: Response) {
     try {
       const guest = await GuestService.getGuestBySlug(String(req.params.slug));

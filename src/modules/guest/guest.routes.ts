@@ -16,9 +16,10 @@ router.post(
 
 router.get("/", GuestController.getAll);
 
+router.get("/slug/:slug", GuestController.getBySlug);
 router.get("/:id", GuestController.getById);
 
-router.get("/slug/:slug", GuestController.getBySlug);
+router.patch("/:id/approve", authenticate, GuestController.approve);
 
 router.put(
   "/slug/:slug",
