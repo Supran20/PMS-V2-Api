@@ -1,46 +1,11 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../../config/db";
 import Role from "../roles/role.model";
-import { BelongsToManyAddAssociationMixin } from "sequelize";
-
-// Define attributes for User model
-export interface UserAttributes {
-  id: string;
-  full_name: string;
-  username: string;
-  email: string;
-  password: string;
-  status: string | null;
-  email_verify_at: Date | null;
-  otp: string | null;
-  otp_expires_at: Date | null;
-  remember_token: string | null;
-  profile_image: string | null;
-  mobile_number: string | null;
-  enable_otp_login: boolean;
-  otp_in_sms: boolean;
-  otp_in_mail: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
-
-// Define optional fields for User creation
-export type UserCreationAttributes = Optional<
-  UserAttributes,
-  | "id"
-  | "status"
-  | "email_verify_at"
-  | "otp"
-  | "otp_expires_at"
-  | "remember_token"
-  | "profile_image"
-  | "mobile_number"
-  | "enable_otp_login"
-  | "otp_in_sms"
-  | "otp_in_mail"
-  | "created_at"
-  | "updated_at"
->;
+import {
+  BelongsToManyAddAssociationMixin,
+  BelongsToManySetAssociationsMixin,
+} from "sequelize";
+import { UserAttributes, UserCreationAttributes } from "./user.interface";
 
 // Define Sequelize Model for User
 export class User
@@ -67,6 +32,7 @@ export class User
 
   declare roles?: Role[];
   declare addRole: BelongsToManyAddAssociationMixin<Role, string>;
+  declare setRoles: BelongsToManySetAssociationsMixin<Role, string>;
 }
 
 User.init(
@@ -117,7 +83,7 @@ User.init(
       allowNull: true,
     },
     profile_image: {
-      type: DataTypes.STRING,
+      type: DataTypes.UUID,
       allowNull: true,
     },
     mobile_number: {

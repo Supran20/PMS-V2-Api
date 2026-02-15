@@ -10,6 +10,11 @@ import Studio from "./studio/studio.model";
 import Interview from "./interview/interview.model";
 
 export const setupAssociations = () => {
+  User.belongsTo(Media, {
+    foreignKey: "profile_image",
+    as: "profileImage",
+    onDelete: "SET NULL",
+  });
   //------------------------------------------------
   // USER ↔ ROLE
   //------------------------------------------------

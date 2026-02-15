@@ -21,7 +21,7 @@ router.get("/:id", GuestController.getById);
 
 router.patch("/:id/approve", authenticate, GuestController.approve);
 
-router.put(
+router.put( 
   "/slug/:slug",
   authenticate,
   validate(updateGuestSchema),

@@ -1,0 +1,32 @@
+export interface UserAttributes {
+  id: string;
+  full_name: string;
+  username: string;
+  email: string;
+  password: string;
+
+  status?: string | null;
+  email_verify_at?: Date | null;
+  otp?: string | null;
+  otp_expires_at?: Date | null;
+  remember_token?: string | null;
+
+  profile_image?: string | null;
+  mobile_number?: string | null;
+
+  enable_otp_login?: boolean;
+  otp_in_sms?: boolean;
+  otp_in_mail?: boolean;
+
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+export interface UserCreationAttributes extends Partial<
+  Omit<UserAttributes, "id" | "created_at" | "updated_at">
+> {
+  full_name: string;
+  username: string;
+  email: string;
+  password: string;
+}
