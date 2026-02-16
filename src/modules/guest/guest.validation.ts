@@ -11,6 +11,7 @@ export const createGuestSchema = z.object({
   phone: z.string().optional().nullable(),
 
   profile_image: z.string().uuid().optional().nullable(),
+  referred_by: z.string().uuid().optional().nullable(),
 });
 
 export const updateGuestSchema = createGuestSchema.partial();

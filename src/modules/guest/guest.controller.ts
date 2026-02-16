@@ -53,7 +53,7 @@ export class GuestController {
     try {
       const guest = await GuestService.approveGuest(
         String(req.params.id),
-        req.user.id,
+        req.user,
       );
 
       res.status(200).json({

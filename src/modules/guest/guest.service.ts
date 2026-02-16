@@ -6,6 +6,7 @@ import Role from "../roles/role.model";
 import { sendEmail } from "../../services/email.service";
 import ApiError from "../../middleware/error-handlers/ApiError";
 import { GuestAttributes } from "./guest.interface";
+import Media from "../media/media.model";
 
 class GuestService {
   //--------------------------------
@@ -38,7 +39,7 @@ class GuestService {
           ...data,
           approved: autoApprove,
           approved_by: autoApprove ? creator.id : null,
-          referred_by: autoApprove ? null : creator.id,
+          referred_by: data.referred_by ?? creator.id,
           created_by: creator.id,
           updated_by: creator.id,
         },
@@ -84,6 +85,13 @@ class GuestService {
   static async getAllGuests(): Promise<Guest[]> {
     return await Guest.findAll({
       order: [["created_at", "DESC"]],
+      include: [
+        {
+          model: Media,
+          as: "profileImage",
+          attributes: ["id", "media_name", "path", "type"],
+        },
+      ],
     });
   }
 
@@ -106,6 +114,13 @@ class GuestService {
   static async getGuestBySlug(slug: string): Promise<Guest> {
     const guest = await Guest.findOne({
       where: { slug },
+      include: [
+        {
+          model: Media,
+          as: "profileImage",
+          attributes: ["id", "media_name", "path", "type"],
+        },
+      ],
     });
 
     if (!guest) {
@@ -118,7 +133,7 @@ class GuestService {
   //--------------------------------
   // APPROVE Guest
   //--------------------------------
-  static async approveGuest(id: string, approverId: string): Promise<Guest> {
+  static async approveGuest(id: string, approver: any): Promise<Guest> {
     const guest = await Guest.findByPk(id);
 
     if (!guest) {
@@ -129,10 +144,18 @@ class GuestService {
       throw new ApiError(400, "Guest already approved");
     }
 
+    const isAdmin = approver.roles?.some(
+      (role: any) => role.role_name === "Admin",
+    );
+
+    if (!isAdmin) {
+      throw new ApiError(403, "Only Admin can approve guest");
+    }
+
     await guest.update({
       approved: true,
-      approved_by: approverId,
-      updated_by: approverId,
+      approved_by: approver.id,
+      updated_by: approver.id,
     });
 
     return guest;

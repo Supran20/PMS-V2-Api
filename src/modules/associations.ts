@@ -96,6 +96,40 @@ export const setupAssociations = () => {
   });
 
   //------------------------------------------------
+  // GUEST ASSOCIATIONS
+  //------------------------------------------------
+
+  Guest.belongsTo(Media, {
+    foreignKey: "profile_image",
+    as: "profileImage",
+    onDelete: "SET NULL",
+  });
+
+  Guest.belongsTo(User, {
+    foreignKey: "referred_by",
+    as: "referrer",
+    onDelete: "SET NULL",
+  });
+
+  Guest.belongsTo(User, {
+    foreignKey: "approved_by",
+    as: "approver",
+    onDelete: "SET NULLL",
+  });
+
+  Guest.belongsTo(User, {
+    foreignKey: "created_by",
+    as: "creator",
+    onDelete: "SET NULL",
+  });
+
+  Guest.belongsTo(User, {
+    foreignKey: "updated_by",
+    as: "updater",
+    onDelete: "SET NULL",
+  });
+
+  //------------------------------------------------
   // INTERVIEW ASSOCIATIONS
   //------------------------------------------------
 
