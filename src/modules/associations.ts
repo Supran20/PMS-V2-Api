@@ -170,11 +170,6 @@ export const setupAssociations = () => {
   });
 
   // Interview → Creator
-  Interview.belongsTo(User, {
-    foreignKey: "referred_by",
-    as: "referrer",
-    onDelete: "SET NULL",
-  });
 
   Interview.belongsTo(User, {
     foreignKey: "created_by",

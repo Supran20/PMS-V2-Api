@@ -84,7 +84,7 @@ class GuestService {
   //--------------------------------
   static async getAllGuests(): Promise<Guest[]> {
     return await Guest.findAll({
-      order: [["created_at", "DESC"]],
+      order: [["full_name", "ASC"]],
       include: [
         {
           model: Media,

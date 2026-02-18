@@ -9,6 +9,7 @@ import {
 import Guest from "../guest/guest.model";
 import User from "../users/user.model";
 import Studio from "../studio/studio.model";
+import { sendEmail } from "../../services/email.service";
 
 class InterviewService {
   //--------------------------------
@@ -132,7 +133,41 @@ class InterviewService {
         { transaction },
       );
 
+      // Fetch host, guest and studio details
+      const host = await User.findByPk(data.host_id, { transaction });
+      const guest = await Guest.findByPk(data.guest_id, { transaction });
+      const studio = await Studio.findByPk(data.studio_id, { transaction });
+
+      if (!host || !guest || !studio) {
+        throw new ApiError(400, "Invalid host, guest or studio");
+      }
+
       await transaction.commit();
+      // Send email notification to host
+      try {
+        const subject = "New Interview Assigned";
+
+        const message = `
+          Hello ${host.full_name},
+
+          You have been assigned a new interview.
+
+          Guest: ${guest.full_name}
+          Date: ${data.interview_date}
+          Time: ${data.start_time} - ${end_time}
+          Studio: ${studio.studio_name}
+
+          Please log in to the system for more details.
+
+          Thank you.
+          `;
+
+        await sendEmail(host.email, subject, message);
+      } catch (emailError) {
+        console.error("Email sending failed:", emailError);
+        // DO NOT throw error here — interview already created
+      }
+
       return interview;
     } catch (error) {
       await transaction.rollback();
