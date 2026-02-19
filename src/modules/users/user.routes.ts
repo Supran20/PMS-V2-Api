@@ -7,7 +7,13 @@ const router = Router();
 
 router.post("/", authenticate, authorize("user.manage"), UserController.create);
 
-router.get("/", authenticate, authorize("user.manage"), UserController.getAll);
+router.get(
+  "/",
+  authenticate,
+  // authorize("user.manage"),
+
+  UserController.getAll,
+);
 
 router.get(
   "/:id",

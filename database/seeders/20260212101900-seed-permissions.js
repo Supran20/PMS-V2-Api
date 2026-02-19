@@ -12,6 +12,12 @@ module.exports = {
       },
       {
         id: uuidv4(),
+        permission_type: "user.view",
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        id: uuidv4(),
         permission_type: "interview.create",
         created_at: new Date(),
         updated_at: new Date(),
@@ -36,7 +42,25 @@ module.exports = {
       },
       {
         id: uuidv4(),
-        permission_type: "guest.manage",
+        permission_type: "guest.create",
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        id: uuidv4(),
+        permission_type: "guest.view",
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        id: uuidv4(),
+        permission_type: "guest.update",
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        id: uuidv4(),
+        permission_type: "guest.delete",
         created_at: new Date(),
         updated_at: new Date(),
       },
@@ -46,6 +70,7 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date(),
       },
+
       {
         id: uuidv4(),
         permission_type: "location.manage",
