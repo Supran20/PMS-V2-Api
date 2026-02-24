@@ -58,7 +58,7 @@ export class MediaController {
   // Get Media by ID
   static async getMediaById(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = req.params.id;
+      const id = req.params.id as string;
       const media = await MediaService.getMediaById(id);
 
       return res.status(200).json({
@@ -78,7 +78,7 @@ export class MediaController {
     next: NextFunction,
   ) {
     try {
-      const id = req.params.id;
+      const id = req.params.id as string;
       const userId = req.user?.id;
 
       if (!req.file) {
@@ -113,7 +113,7 @@ export class MediaController {
   // Delete Media
   static async deleteMedia(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = req.params.id;
+      const id = req.params.id as string;
       await MediaService.deleteMedia(id);
 
       return res.status(200).json({
