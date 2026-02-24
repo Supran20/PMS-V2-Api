@@ -180,7 +180,10 @@ class InterviewService {
   //--------------------------------
   static async getAll(): Promise<Interview[]> {
     return await Interview.findAll({
-      order: [["interview_date", "DESC"]],
+      order: [
+        ["priority", "DESC"],
+        ["interview_date", "DESC"],
+      ],
       include: [
         {
           model: Guest,
@@ -208,6 +211,38 @@ class InterviewService {
     const interview = await Interview.findByPk(id);
     if (!interview) throw new ApiError(404, "Interview not found");
     return interview;
+  }
+
+  //--------------------------------
+  // REORDER (DnD)
+  //--------------------------------
+  static async reorderInterviews(
+    orderedIds: string[],
+    updaterId: string,
+  ): Promise<void> {
+    const transaction = await sequelize.transaction();
+
+    try {
+      const total = orderedIds.length;
+
+      for (let index = 0; index < total; index++) {
+        await Interview.update(
+          {
+            priority: total - index,
+            updated_by: updaterId,
+          },
+          {
+            where: { id: orderedIds[index] },
+            transaction,
+          },
+        );
+      }
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   //--------------------------------

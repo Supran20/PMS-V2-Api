@@ -21,6 +21,8 @@ router.get("/", authenticate, InterviewController.getAll);
 
 router.get("/:id", authenticate, InterviewController.getById);
 
+router.patch("/reorder", authenticate, InterviewController.reorder);
+
 router.put(
   "/:id",
   authenticate,

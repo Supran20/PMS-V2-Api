@@ -54,6 +54,34 @@ export class InterviewController {
   }
 
   //--------------------------------
+  // REORDER
+  //--------------------------------
+  static async reorder(req: AuthRequest, res: Response) {
+    try {
+      const { orderedIds } = req.body;
+
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({
+          success: false,
+          message: "orderedIds must be an array",
+        });
+      }
+
+      await InterviewService.reorderInterviews(orderedIds, req.user.id);
+
+      res.status(200).json({
+        success: true,
+        message: "Interview order updated successfully",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  //--------------------------------
   // UPDATE
   //--------------------------------
   static async update(req: AuthRequest, res: Response) {

@@ -12,6 +12,8 @@ export interface InterviewAttributes {
   interview_status?: string | null; // scheduled, completed, cancelled
   live_status?: string | null; // live, recorded, not_live
 
+  priority?: number;
+
   google_drive_link?: string | null;
   youtube_link?: string | null;
 

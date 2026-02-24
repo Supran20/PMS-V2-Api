@@ -9,6 +9,8 @@ export const createUserSchema = z.object({
   profile_image: z.string().uuid().optional(),
   mobile_number: z.string().optional(),
   enable_otp_login: z.boolean().optional(),
+  otp_in_mail: z.boolean().optional(),
+  otp_in_sms: z.boolean().optional(),
   role_name: z.enum(["Admin", "Host", "Staff"]),
 });
 
@@ -23,5 +25,7 @@ export const updateUserSchema = z.object({
   profile_image: z.string().uuid().nullable().optional(),
   mobile_number: z.string().optional(),
   enable_otp_login: z.boolean().optional(),
+  otp_in_mail: z.boolean().optional(),
+  otp_in_sms: z.boolean().optional(),
   role_name: z.enum(["Admin", "Host", "Staff"]).optional(),
 });

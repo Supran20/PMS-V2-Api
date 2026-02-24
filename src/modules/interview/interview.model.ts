@@ -22,6 +22,8 @@ class Interview
   declare interview_status: string | null;
   declare live_status: string | null;
 
+  declare priority: number;
+
   declare google_drive_link: string | null;
   declare youtube_link: string | null;
 
@@ -89,6 +91,12 @@ Interview.init(
       type: DataTypes.STRING,
       allowNull: false,
       defaultValue: "not_live",
+    },
+
+    priority: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
     },
 
     google_drive_link: {
