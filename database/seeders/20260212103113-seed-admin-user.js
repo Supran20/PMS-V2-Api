@@ -16,9 +16,9 @@ module.exports = {
     await queryInterface.bulkInsert("users", [
       {
         id: adminId,
-        full_name: "Supran Maharjan",
-        username: "supran",
-        email: "msupran17@gmail.com",
+        full_name: "Admin User",
+        username: "admin user",
+        email: "adminpms@realstorytime.com",
         password: hashedPassword,
         status: "active",
         email_verify_at: now,
@@ -62,7 +62,7 @@ module.exports = {
     await queryInterface.bulkDelete("user_roles", null, {});
     await queryInterface.bulkDelete(
       "users",
-      { email: "msupran17@gmail.com" },
+      { email: "adminpms@realstorytime.com" },
       {},
     );
   },

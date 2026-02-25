@@ -81,24 +81,36 @@ export class MediaController {
       const id = req.params.id as string;
       const userId = req.user?.id;
 
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message: "Media file is required",
-        });
+      // Normalize body values (fix string | string[])
+      const media_name =
+        typeof req.body.media_name === "string"
+          ? req.body.media_name
+          : undefined;
+
+      let tag_id: string | null | undefined;
+
+      if (typeof req.body.tag_id === "string") {
+        tag_id = req.body.tag_id === "" ? null : req.body.tag_id;
       }
 
-      const mediaPath = `/uploads/media/${req.file.filename}`;
-      const media_type = req.file.mimetype;
-      const media_category = media_type.startsWith("video/")
-        ? "video"
-        : "image";
+      let updatePayload: any = {
+        ...(media_name !== undefined && { media_name }),
+        ...(tag_id !== undefined && { tag_id }),
+      };
 
-      const updated = await MediaService.updateMedia(
-        id,
-        { ...req.body, path: mediaPath, type: media_category },
-        userId,
-      );
+      // File is OPTIONAL
+      if (req.file) {
+        const mediaPath = `/uploads/media/${req.file.filename}`;
+        const media_type = req.file.mimetype; // store real mimetype
+
+        updatePayload = {
+          ...updatePayload,
+          path: mediaPath,
+          type: media_type,
+        };
+      }
+
+      const updated = await MediaService.updateMedia(id, updatePayload, userId);
 
       return res.status(200).json({
         success: true,

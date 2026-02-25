@@ -30,22 +30,18 @@ module.exports = {
       })),
 
       // Host permissions (only interview)
-      {
-        id: Sequelize.Utils.toDefaultValue(Sequelize.UUIDV4()),
-        role_id: roleMap["Host"],
-        permission_id: permissionMap["interview.create"],
-        granted_at: now,
-      },
-      {
-        id: Sequelize.Utils.toDefaultValue(Sequelize.UUIDV4()),
-        role_id: roleMap["Host"],
-        permission_id: permissionMap["interview.update"],
-        granted_at: now,
-      },
+
       {
         id: Sequelize.Utils.toDefaultValue(Sequelize.UUIDV4()),
         role_id: roleMap["Host"],
         permission_id: permissionMap["interview.view"],
+        granted_at: now,
+      },
+
+      {
+        id: Sequelize.Utils.toDefaultValue(Sequelize.UUIDV4()),
+        role_id: roleMap["Host"],
+        permission_id: permissionMap["guest.view"],
         granted_at: now,
       },
 

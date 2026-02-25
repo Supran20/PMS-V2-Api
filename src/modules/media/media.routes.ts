@@ -7,10 +7,6 @@ import { uploadMedia } from "../../middleware/upload.media.middleware";
 
 const router = Router();
 
-// -------------------------
-// Public Routes
-// -------------------------
-
 // Get all media
 router.get("/", MediaController.getAllMedia);
 

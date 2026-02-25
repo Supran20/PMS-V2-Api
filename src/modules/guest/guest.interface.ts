@@ -11,6 +11,7 @@ export interface GuestAttributes {
   phone?: string | null;
 
   approved?: boolean;
+  approved_by?: string | null;
 
   referred_by?: string | null;
   profile_image?: string | null;
