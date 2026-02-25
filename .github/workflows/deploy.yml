@@ -23,6 +23,5 @@ jobs:
             pnpm install
             pnpm build
             pnpm migrate
-            pnpm seed
             pm2 restart rstpms
             pm2 save
