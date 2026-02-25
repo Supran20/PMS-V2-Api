@@ -64,7 +64,7 @@ module.exports = {
       },
 
       profile_image: {
-        type: Sequelize.STRING,
+        type: Sequelize.UUID,
         allowNull: true,
       },
 
