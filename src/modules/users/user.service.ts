@@ -155,8 +155,15 @@ class UserService {
   //--------------------------------
   // DELETE USER
   //--------------------------------
-  static async deleteUser(id: string): Promise<void> {
-    const user = await User.findByPk(id);
+  static async deleteUser(
+    targetUserId: string,
+    currentUserId: string,
+  ): Promise<void> {
+    if (targetUserId === currentUserId) {
+      throw new ApiError(403, "You cannot delete your own account");
+    }
+
+    const user = await User.findByPk(targetUserId);
 
     if (!user) {
       throw new ApiError(404, "User not found");
