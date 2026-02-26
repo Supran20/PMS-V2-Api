@@ -24,15 +24,6 @@ class UserService {
         throw new ApiError(400, "Email already exists");
       }
 
-      const existingUsername = await User.findOne({
-        where: { username: data.username },
-        transaction,
-      });
-
-      if (existingUsername) {
-        throw new ApiError(400, "Username already exists");
-      }
-
       const hashedPassword = await bcrypt.hash(data.password, 10);
 
       const user = await User.create(

@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const createUserSchema = z.object({
   full_name: z.string().min(3),
-  username: z.string().min(3),
   email: z.string().email(),
   password: z.string().min(8),
   status: z.enum(["active", "inactive"]).optional(),
@@ -18,7 +17,6 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
 
 export const updateUserSchema = z.object({
   full_name: z.string().min(3).optional(),
-  username: z.string().min(3).optional(),
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
   status: z.enum(["active", "inactive"]).optional(),

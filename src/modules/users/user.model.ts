@@ -14,7 +14,6 @@ export class User
 {
   declare id: string;
   declare full_name: string;
-  declare username: string;
   declare email: string;
   declare password: string;
   declare status: string | null;
@@ -46,11 +45,7 @@ User.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    username: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
-    },
+
     email: {
       type: DataTypes.STRING,
       allowNull: false,

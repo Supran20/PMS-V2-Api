@@ -1,26 +1,27 @@
 import nodemailer from "nodemailer";
+import AWS from "aws-sdk";
+
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_DEFAULT_REGION,
+});
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
-  host: "smtp.gmail.com",
-  port: 587,
+  host: "email-smtp." + process.env.AWS_DEFAULT_REGION + ".amazonaws.com",
+  port: 465,
+  secure: true,
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
+    user: process.env.AWS_ACCESS_KEY_ID,
+    pass: process.env.AWS_SECRET_ACCESS_KEY,
   },
 });
 
-export const sendEmail = async (to: string, subject: string, text: string) => {
-  try {
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER,
-      to,
-      subject,
-      text,
-    });
-    console.log(`✅ Email sent to ${to}`);
-  } catch (err) {
-    console.error("❌ Email send failed:", err);
-    throw new Error("Failed to send email");
-  }
+export const sendEmail = async (to: string, subject: string, body: string) => {
+  await transporter.sendMail({
+    from: process.env.ENQUIRY_FROM_MAIL,
+    to,
+    subject,
+    html: body,
+  });
 };
