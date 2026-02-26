@@ -1,7 +1,6 @@
 export interface UserAttributes {
   id: string;
   full_name: string;
-  username: string;
   email: string;
   password: string;
 
@@ -26,7 +25,6 @@ export interface UserCreationAttributes extends Partial<
   Omit<UserAttributes, "id" | "created_at" | "updated_at">
 > {
   full_name: string;
-  username: string;
   email: string;
   password: string;
 }

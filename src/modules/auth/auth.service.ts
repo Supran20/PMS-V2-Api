@@ -71,7 +71,6 @@ export class AuthService {
     const { accessToken, refreshToken } = this.generateTokens({
       id: user.id,
       email: user.email,
-      username: user.username,
     });
 
     return { accessToken, refreshToken };
@@ -102,7 +101,6 @@ export class AuthService {
     const { accessToken, refreshToken } = this.generateTokens({
       id: user.id,
       email: user.email,
-      username: user.username,
     });
 
     return { accessToken, refreshToken };
@@ -154,7 +152,6 @@ export class AuthService {
         {
           id: user.id,
           email: user.email,
-          username: user.username,
         },
         process.env.JWT_SECRET_KEY!,
         { expiresIn: ACCESS_TOKEN_EXPIRY },
@@ -172,7 +169,6 @@ export class AuthService {
       attributes: [
         "id",
         "full_name",
-        "username",
         "email",
         "status",
         "created_at",
