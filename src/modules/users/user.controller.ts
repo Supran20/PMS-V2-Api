@@ -70,7 +70,7 @@ export class UserController {
 
   static async delete(req: AuthRequest, res: Response) {
     try {
-      await UserService.deleteUser(String(req.params.id));
+      await UserService.deleteUser(String(req.params.id), String(req.user?.id));
 
       res.status(200).json({
         success: true,
