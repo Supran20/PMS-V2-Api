@@ -12,10 +12,17 @@ class GuestService {
   //--------------------------------
   // CREATE Guest
   //--------------------------------
-  static async createGuest(data: any, creator: any): Promise<Guest> {
+  static async createGuest(
+    data: any,
+    creator: any,
+    file?: Express.Multer.File,
+  ): Promise<Guest> {
     const transaction: Transaction = await sequelize.transaction();
 
     try {
+      // --------------------------------
+      // 1️⃣ Check slug uniqueness
+      // --------------------------------
       const existingSlug = await Guest.findOne({
         where: { slug: data.slug },
         transaction,
@@ -25,6 +32,40 @@ class GuestService {
         throw new ApiError(400, "Slug already exists");
       }
 
+      // --------------------------------
+      // 2️⃣ Create Media (if file uploaded)
+      // --------------------------------
+      let mediaId: string | null = null;
+
+      if (file) {
+        // Generate clean media name from original filename
+        const originalName = file.originalname;
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, "");
+        const sanitizedMediaName = nameWithoutExt
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+
+        const mediaPath = `/uploads/media/${file.filename}`;
+
+        const media = await Media.create(
+          {
+            media_name: sanitizedMediaName,
+            path: mediaPath,
+            type: file.mimetype,
+            tag_id: data.tag_id ?? null,
+            created_by: creator.id,
+            updated_by: creator.id,
+          },
+          { transaction },
+        );
+
+        mediaId = media.id;
+      }
+
+      // --------------------------------
+      // 3️⃣ Auto-approval logic
+      // --------------------------------
       const userPermissions = new Set(
         creator.roles?.flatMap(
           (role: any) =>
@@ -34,9 +75,13 @@ class GuestService {
 
       const autoApprove = userPermissions.has("guest.auto_approve");
 
+      // --------------------------------
+      // 4️⃣ Create Guest
+      // --------------------------------
       const guest = await Guest.create(
         {
           ...data,
+          profile_image: mediaId,
           approved: autoApprove,
           approved_by: autoApprove ? creator.id : null,
           referred_by: data.referred_by ?? creator.id,
@@ -48,7 +93,9 @@ class GuestService {
 
       await transaction.commit();
 
-      // Notify Admin if not auto-approved
+      // --------------------------------
+      // 5️⃣ Notify Admins if needed
+      // --------------------------------
       if (!autoApprove) {
         const admins = await User.findAll({
           include: [
@@ -74,6 +121,16 @@ class GuestService {
 
       return guest;
     } catch (error) {
+      // 🔥 Cleanup uploaded file if transaction fails
+      if (file) {
+        const fs = await import("fs");
+        const fullPath = file.path;
+
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+
       await transaction.rollback();
       throw error;
     }
