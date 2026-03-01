@@ -8,7 +8,11 @@ export class GuestController {
     try {
       const validated = createGuestSchema.parse(req.body);
 
-      const guest = await GuestService.createGuest(validated, req.user);
+      const guest = await GuestService.createGuest(
+        validated,
+        req.user,
+        req.file,
+      );
 
       res.status(201).json({
         success: true,
@@ -89,7 +93,8 @@ export class GuestController {
       const guest = await GuestService.updateGuestBySlug(
         String(req.params.slug),
         validated,
-        req.user.id,
+        req.user,
+        req.file,
       );
 
       res.status(200).json({

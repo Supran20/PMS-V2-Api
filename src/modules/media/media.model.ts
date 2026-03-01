@@ -4,9 +4,8 @@ import { IMedia } from "./media.interface";
 
 export interface MediaCreationAttributes extends Optional<
   IMedia,
-  "id" | "tag_id" | "created_by" | "updated_by" | "media_name" | "path" | "type"
+  "id" | "tag_id" | "created_by" | "updated_by" | "created_at" | "updated_at"
 > {}
-
 class Media extends Model<IMedia, MediaCreationAttributes> implements IMedia {
   declare id: string;
   declare media_name: string;

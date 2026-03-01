@@ -9,8 +9,8 @@ export const createGuestSchema = z.object({
   social_media: z.any().optional().nullable(),
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
+  tag_id: z.string().uuid().optional().nullable(),
 
-  profile_image: z.string().uuid().optional().nullable(),
   referred_by: z.string().uuid().optional().nullable(),
 });
 
