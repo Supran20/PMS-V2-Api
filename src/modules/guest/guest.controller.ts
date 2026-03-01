@@ -93,7 +93,8 @@ export class GuestController {
       const guest = await GuestService.updateGuestBySlug(
         String(req.params.slug),
         validated,
-        req.user.id,
+        req.user,
+        req.file,
       );
 
       res.status(200).json({

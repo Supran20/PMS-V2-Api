@@ -223,28 +223,80 @@ class GuestService {
   //--------------------------------
   static async updateGuestBySlug(
     slug: string,
-    data: Partial<GuestAttributes>,
-    userId: string,
+    data: any,
+    user: any,
+    file?: Express.Multer.File,
   ): Promise<Guest> {
-    const guest = await Guest.findOne({
-      where: { slug },
-    });
+    const transaction = await sequelize.transaction();
 
-    if (!guest) {
-      throw new ApiError(404, "Guest not found");
+    try {
+      const guest = await Guest.findOne({
+        where: { slug },
+        transaction,
+      });
+
+      if (!guest) {
+        throw new ApiError(404, "Guest not found");
+      }
+
+      let mediaId = guest.profile_image;
+
+      // --------------------------------
+      // If new file uploaded
+      // --------------------------------
+      if (file) {
+        const originalName = file.originalname;
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, "");
+        const sanitizedMediaName = nameWithoutExt
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+
+        const mediaPath = `/uploads/media/${file.filename}`;
+
+        const media = await Media.create(
+          {
+            media_name: sanitizedMediaName,
+            path: mediaPath,
+            type: file.mimetype,
+            tag_id: data.tag_id ?? null,
+            created_by: user.id,
+            updated_by: user.id,
+          },
+          { transaction },
+        );
+
+        mediaId = media.id;
+      }
+
+      // Prevent manual override
+      if ("approved" in data) {
+        delete data.approved;
+      }
+
+      await guest.update(
+        {
+          ...data,
+          profile_image: mediaId,
+          updated_by: user.id,
+        },
+        { transaction },
+      );
+
+      await transaction.commit();
+
+      return guest;
+    } catch (error) {
+      if (file) {
+        const fs = await import("fs");
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      }
+
+      await transaction.rollback();
+      throw error;
     }
-
-    // Prevent manual override of approval
-    if ("approved" in data) {
-      delete data.approved;
-    }
-
-    await guest.update({
-      ...data,
-      updated_by: userId,
-    });
-
-    return guest;
   }
 
   //--------------------------------

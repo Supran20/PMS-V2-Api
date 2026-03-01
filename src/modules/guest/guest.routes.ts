@@ -38,6 +38,7 @@ router.put(
   "/slug/:slug",
   authenticate,
   authorize("guest.update"),
+  uploadMedia,
   validate(updateGuestSchema),
   GuestController.updateBySlug,
 );
