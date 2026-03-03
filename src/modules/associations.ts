@@ -114,7 +114,7 @@ export const setupAssociations = () => {
   Guest.belongsTo(User, {
     foreignKey: "approved_by",
     as: "approver",
-    onDelete: "SET NULLL",
+    onDelete: "SET NULL",
   });
 
   Guest.belongsTo(User, {

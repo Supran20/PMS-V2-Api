@@ -1,27 +1,57 @@
-import nodemailer from "nodemailer";
-import AWS from "aws-sdk";
+import nodemailer, { Transporter } from "nodemailer";
 
-AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_DEFAULT_REGION,
-});
+interface EmailOptions {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}
 
-const transporter = nodemailer.createTransport({
-  host: "email-smtp." + process.env.AWS_DEFAULT_REGION + ".amazonaws.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.AWS_ACCESS_KEY_ID,
-    pass: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+let transporter: Transporter | null = null;
 
-export const sendEmail = async (to: string, subject: string, body: string) => {
-  await transporter.sendMail({
-    from: process.env.ENQUIRY_FROM_MAIL,
-    to,
-    subject,
-    html: body,
+/**
+ * Lazily initialize transporter.
+ * Why: avoids crashing app at startup if env is misconfigured.
+ */
+function getTransporter(): Transporter {
+  if (transporter) return transporter;
+
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+    throw new Error("GMAIL_USER or GMAIL_PASS not defined in environment");
+  }
+
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASS,
+    },
   });
-};
+
+  return transporter;
+}
+
+/**
+ * Send email via Gmail SMTP
+ */
+export async function sendEmail(
+  to: string,
+  subject: string,
+  text: string,
+  html?: string,
+): Promise<void> {
+  try {
+    const transporter = getTransporter();
+
+    await transporter.sendMail({
+      from: `"RST" <${process.env.GMAIL_USER}>`,
+      to,
+      subject,
+      text,
+      html: html ?? `<p>${text}</p>`,
+    });
+  } catch (error) {
+    console.error("Email sending failed:", error);
+    throw new Error("Failed to send email");
+  }
+}

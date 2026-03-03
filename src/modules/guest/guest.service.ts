@@ -63,17 +63,25 @@ class GuestService {
         mediaId = media.id;
       }
 
+      if (data.social_media && typeof data.social_media === "string") {
+        try {
+          data.social_media = JSON.parse(data.social_media);
+        } catch (err) {
+          throw new ApiError(400, "Invalid social_media JSON format");
+        }
+      }
+
       // --------------------------------
       // 3️⃣ Auto-approval logic
       // --------------------------------
-      const userPermissions = new Set(
-        creator.roles?.flatMap(
-          (role: any) =>
-            role.permissions?.map((p: any) => p.permission_type) ?? [],
-        ),
-      );
+      // const userPermissions = new Set(
+      //   creator.roles?.flatMap(
+      //     (role: any) =>
+      //       role.permissions?.map((p: any) => p.permission_type) ?? [],
+      //   ),
+      // );
 
-      const autoApprove = userPermissions.has("guest.auto_approve");
+      // const autoApprove = userPermissions.has("guest.auto_approve");
 
       // --------------------------------
       // 4️⃣ Create Guest
@@ -82,8 +90,8 @@ class GuestService {
         {
           ...data,
           profile_image: mediaId,
-          approved: autoApprove,
-          approved_by: autoApprove ? creator.id : null,
+          // approved: autoApprove,
+          // approved_by: autoApprove ? creator.id : null,
           referred_by: data.referred_by ?? creator.id,
           created_by: creator.id,
           updated_by: creator.id,
@@ -96,28 +104,28 @@ class GuestService {
       // --------------------------------
       // 5️⃣ Notify Admins if needed
       // --------------------------------
-      if (!autoApprove) {
-        const admins = await User.findAll({
-          include: [
-            {
-              model: Role,
-              as: "roles",
-              where: { role_name: "Admin" },
-              through: { attributes: [] },
-            },
-          ],
-        });
+      // if (!autoApprove) {
+      //   const admins = await User.findAll({
+      //     include: [
+      //       {
+      //         model: Role,
+      //         as: "roles",
+      //         where: { role_name: "Admin" },
+      //         through: { attributes: [] },
+      //       },
+      //     ],
+      //   });
 
-        for (const admin of admins) {
-          if (admin.email) {
-            await sendEmail(
-              admin.email,
-              "Guest Approval Required",
-              `A new guest "${guest.full_name}" requires approval.`,
-            );
-          }
-        }
-      }
+      //   for (const admin of admins) {
+      //     if (admin.email) {
+      //       await sendEmail(
+      //         admin.email,
+      //         "Guest Approval Required",
+      //         `A new guest "${guest.full_name}" requires approval.`,
+      //       );
+      //     }
+      //   }
+      // }
 
       return guest;
     } catch (error) {
@@ -146,7 +154,17 @@ class GuestService {
         {
           model: Media,
           as: "profileImage",
-          attributes: ["id", "media_name", "path", "type"],
+          attributes: ["id", "media_name", "path", "type", "tag_id"],
+        },
+        {
+          model: User,
+          as: "referrer",
+          attributes: ["id", "full_name"],
+        },
+        {
+          model: User,
+          as: "approver",
+          attributes: ["id", "full_name"],
         },
       ],
     });
@@ -175,7 +193,17 @@ class GuestService {
         {
           model: Media,
           as: "profileImage",
-          attributes: ["id", "media_name", "path", "type"],
+          attributes: ["id", "media_name", "path", "type", "tag_id"],
+        },
+        {
+          model: User,
+          as: "referrer",
+          attributes: ["id", "full_name"],
+        },
+        {
+          model: User,
+          as: "approver",
+          attributes: ["id", "full_name"],
         },
       ],
     });
@@ -267,11 +295,30 @@ class GuestService {
         );
 
         mediaId = media.id;
+      } else if (data.tag_id && guest.profile_image) {
+        await Media.update(
+          {
+            tag_id: data.tag_id,
+            updated_by: user.id,
+          },
+          {
+            where: { id: guest.profile_image },
+            transaction,
+          },
+        );
       }
 
       // Prevent manual override
       if ("approved" in data) {
         delete data.approved;
+      }
+
+      if (data.social_media && typeof data.social_media === "string") {
+        try {
+          data.social_media = JSON.parse(data.social_media);
+        } catch (err) {
+          throw new ApiError(400, "Invalid social_media JSON format");
+        }
       }
 
       await guest.update(
