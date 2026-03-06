@@ -110,11 +110,31 @@ class InterviewService {
         throw new ApiError(400, "End time must be after start time");
       }
 
+      // Fetch guest first
+      const guest = await Guest.findByPk(data.guest_id, { transaction });
+
+      if (!guest) {
+        throw new ApiError(400, "Guest not found");
+      }
+
+      // Determine host (allow override)
+      let hostId: string;
+
+      if (data.host_id) {
+        // If host is explicitly provided in request → use it
+        hostId = data.host_id;
+      } else if (guest.host_id) {
+        // Otherwise fallback to guest's assigned host
+        hostId = guest.host_id;
+      } else {
+        throw new ApiError(400, "Host is required for this guest");
+      }
+
       // Overlap check
       await this.checkOverlap(
         {
           guest_id: data.guest_id,
-          host_id: data.host_id,
+          host_id: hostId,
           studio_id: data.studio_id,
           interview_date: String(data.interview_date),
           start_time: data.start_time,
@@ -126,6 +146,7 @@ class InterviewService {
       const interview = await Interview.create(
         {
           ...data,
+          host_id: hostId,
           end_time,
           created_by: creatorId,
           updated_by: creatorId,
@@ -134,8 +155,7 @@ class InterviewService {
       );
 
       // Fetch host, guest and studio details
-      const host = await User.findByPk(data.host_id, { transaction });
-      const guest = await Guest.findByPk(data.guest_id, { transaction });
+      const host = await User.findByPk(hostId, { transaction });
       const studio = await Studio.findByPk(data.studio_id, { transaction });
 
       if (!host || !guest || !studio) {
@@ -188,7 +208,7 @@ class InterviewService {
         {
           model: Guest,
           as: "guest",
-          attributes: ["id", "full_name", "email"],
+          attributes: ["id", "full_name", "email", "slug"],
         },
         {
           model: User,

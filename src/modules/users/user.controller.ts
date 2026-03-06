@@ -46,6 +46,22 @@ export class UserController {
     }
   }
 
+  static async getHosts(req: AuthRequest, res: Response) {
+    try {
+      const hosts = await UserService.getHosts();
+
+      res.status(200).json({
+        success: true,
+        data: hosts,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   static async update(req: AuthRequest, res: Response) {
     try {
       const validated = updateUserSchema.parse(req.body);

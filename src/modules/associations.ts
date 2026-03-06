@@ -145,6 +145,16 @@ export const setupAssociations = () => {
     as: "interviews",
   });
 
+  Guest.belongsTo(User, {
+    foreignKey: "host_id",
+    as: "host",
+  });
+
+  User.hasMany(Guest, {
+    foreignKey: "host_id",
+    as: "hostedGuests",
+  });
+
   // Interview → Host (User)
   Interview.belongsTo(User, {
     foreignKey: "host_id",
