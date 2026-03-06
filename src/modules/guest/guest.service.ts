@@ -7,6 +7,7 @@ import { sendEmail } from "../../services/email.service";
 import ApiError from "../../middleware/error-handlers/ApiError";
 import { GuestAttributes } from "./guest.interface";
 import Media from "../media/media.model";
+import GuestNote from "../guest_note/guest_note.model";
 
 class GuestService {
   //--------------------------------
@@ -84,12 +85,72 @@ class GuestService {
       // const autoApprove = userPermissions.has("guest.auto_approve");
 
       // --------------------------------
+      // 4️⃣ Detect Host Role
+      // --------------------------------
+      const isHost = creator.roles?.some(
+        (role: any) => role.role_name === "Host",
+      );
+
+      let hostId: string | null = null;
+
+      if (isHost) {
+        // Host creating → auto assign
+        hostId = creator.id;
+      } else {
+        // Non-host creating → host_id must be provided
+        if (!data.host_id) {
+          throw new ApiError(400, "host_id is required");
+        }
+
+        // Validate host exists
+        const hostUser = await User.findOne({
+          where: { id: data.host_id },
+          include: [
+            {
+              model: Role,
+              as: "roles",
+              where: { role_name: "Host" }, // 🔥 important
+              through: { attributes: [] },
+            },
+          ],
+          transaction,
+        });
+
+        if (!hostUser) {
+          throw new ApiError(400, "Invalid host_id");
+        }
+
+        // Ensure provided user actually has Host role
+        const isProvidedUserHost = hostUser.roles?.some(
+          (role: any) => role.role_name === "Host",
+        );
+
+        if (!isProvidedUserHost) {
+          throw new ApiError(
+            400,
+            "Provided host_id does not belong to a Host user",
+          );
+        }
+
+        hostId = data.host_id;
+      }
+
+      if (data.notes && typeof data.notes === "string") {
+        try {
+          data.notes = JSON.parse(data.notes);
+        } catch (err) {
+          throw new ApiError(400, "Invalid notes JSON format");
+        }
+      }
+
+      // --------------------------------
       // 4️⃣ Create Guest
       // --------------------------------
       const guest = await Guest.create(
         {
           ...data,
           profile_image: mediaId,
+          host_id: hostId,
           // approved: autoApprove,
           // approved_by: autoApprove ? creator.id : null,
           referred_by: data.referred_by ?? creator.id,
@@ -166,6 +227,11 @@ class GuestService {
           as: "approver",
           attributes: ["id", "full_name"],
         },
+        {
+          model: User,
+          as: "host",
+          attributes: ["id", "full_name"],
+        },
       ],
     });
   }
@@ -204,6 +270,24 @@ class GuestService {
           model: User,
           as: "approver",
           attributes: ["id", "full_name"],
+        },
+
+        {
+          model: User,
+          as: "host",
+          attributes: ["id", "full_name"],
+        },
+        {
+          model: GuestNote,
+          as: "notes",
+          order: [["created_at", "DESC"]],
+          include: [
+            {
+              model: User,
+              as: "creator",
+              attributes: ["id", "full_name"],
+            },
+          ],
         },
       ],
     });
@@ -309,8 +393,18 @@ class GuestService {
       }
 
       // Prevent manual override
+
       if ("approved" in data) {
         delete data.approved;
+      }
+
+      // Validate host_id if provided
+      if (data.host_id) {
+        const host = await User.findByPk(data.host_id, { transaction });
+
+        if (!host) {
+          throw new ApiError(400, "Invalid host_id");
+        }
       }
 
       if (data.social_media && typeof data.social_media === "string") {
@@ -318,6 +412,14 @@ class GuestService {
           data.social_media = JSON.parse(data.social_media);
         } catch (err) {
           throw new ApiError(400, "Invalid social_media JSON format");
+        }
+      }
+
+      if (data.notes && typeof data.notes === "string") {
+        try {
+          data.notes = JSON.parse(data.notes);
+        } catch (err) {
+          throw new ApiError(400, "Invalid notes JSON format");
         }
       }
 

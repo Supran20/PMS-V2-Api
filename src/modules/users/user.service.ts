@@ -97,6 +97,29 @@ class UserService {
   }
 
   //--------------------------------
+  // GET USERS BY ROLE (Host)
+  //--------------------------------
+  static async getHosts(): Promise<User[]> {
+    return await User.findAll({
+      include: [
+        {
+          model: Role,
+          as: "roles",
+          where: { role_name: "Host" },
+          through: { attributes: [] },
+          required: true, // ensures INNER JOIN (only users with Host role)
+        },
+        {
+          model: Media,
+          as: "profileImage",
+          attributes: ["id", "media_name", "path", "type"],
+        },
+      ],
+      order: [["created_at", "DESC"]],
+    });
+  }
+
+  //--------------------------------
   // UPDATE USER
   //--------------------------------
   static async updateUser(id: string, data: any): Promise<User> {

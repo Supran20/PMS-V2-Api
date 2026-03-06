@@ -25,11 +25,11 @@ export interface InterviewAttributes {
 }
 
 export interface InterviewCreationAttributes extends Partial<
-  Omit<InterviewAttributes, "id">
+  Omit<InterviewAttributes, "id" | "host_id">
 > {
   guest_id: string;
-  host_id: string;
   studio_id: string;
   interview_date: string; // YYYY-MM-DD
   start_time: string; // HH:mm:ss
+  host_id?: string;
 }

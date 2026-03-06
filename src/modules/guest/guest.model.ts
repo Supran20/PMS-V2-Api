@@ -14,6 +14,7 @@ class Guest
   declare bio: string | null;
 
   declare social_media: Record<string, any> | null;
+
   declare email: string | null;
   declare phone: string | null;
 
@@ -22,6 +23,8 @@ class Guest
 
   declare referred_by: string | null;
   declare profile_image: string | null;
+
+  declare host_id: string | null;
 
   declare created_by: string | null;
   declare updated_by: string | null;
@@ -92,6 +95,11 @@ Guest.init(
     },
 
     profile_image: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+
+    host_id: {
       type: DataTypes.UUID,
       allowNull: true,
     },

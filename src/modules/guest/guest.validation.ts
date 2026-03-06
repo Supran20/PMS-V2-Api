@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+export const notesSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional().nullable(),
+});
+
 export const createGuestSchema = z.object({
   full_name: z.string().min(1, "Guest name is required"),
   designation: z.string().optional().nullable(),
@@ -7,11 +12,17 @@ export const createGuestSchema = z.object({
   bio: z.string().optional().nullable(),
 
   social_media: z.any().optional().nullable(),
+  notes: z.array(notesSchema).optional().nullable(),
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
   tag_id: z.string().uuid().optional().nullable(),
 
   referred_by: z.string().uuid().optional().nullable(),
+  host_id: z.string().uuid().optional().nullable(),
 });
 
-export const updateGuestSchema = createGuestSchema.partial();
+export const updateGuestSchema = createGuestSchema
+  .extend({
+    host_id: z.string().uuid().optional().nullable(),
+  })
+  .partial();

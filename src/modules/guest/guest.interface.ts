@@ -7,6 +7,7 @@ export interface GuestAttributes {
   bio?: string | null;
 
   social_media?: Record<string, any> | null;
+
   email?: string | null;
   phone?: string | null;
 
@@ -15,6 +16,8 @@ export interface GuestAttributes {
 
   referred_by?: string | null;
   profile_image?: string | null;
+
+  host_id?: string | null;
 
   created_by?: string | null;
   updated_by?: string | null;

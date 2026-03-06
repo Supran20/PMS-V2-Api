@@ -8,6 +8,7 @@ import Media from "./media/media.model";
 import Guest from "./guest/guest.model";
 import Studio from "./studio/studio.model";
 import Interview from "./interview/interview.model";
+import GuestNote from "./guest_note/guest_note.model";
 
 export const setupAssociations = () => {
   User.belongsTo(Media, {
@@ -129,6 +130,37 @@ export const setupAssociations = () => {
     onDelete: "SET NULL",
   });
 
+  Guest.hasMany(GuestNote, {
+    foreignKey: "guest_id",
+    as: "notes",
+    onDelete: "CASCADE",
+  });
+
+  //------------------------------------------------
+  // GUEST NOTE ASSOCIATIONS
+  //------------------------------------------------
+
+  GuestNote.belongsTo(Guest, {
+    foreignKey: "guest_id",
+    as: "guest",
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+  });
+
+  GuestNote.belongsTo(User, {
+    foreignKey: "created_by",
+    as: "creator",
+    onDelete: "SET NULL",
+    onUpdate: "CASCADE",
+  });
+
+  GuestNote.belongsTo(User, {
+    foreignKey: "updated_by",
+    as: "updater",
+    onDelete: "SET NULL",
+    onUpdate: "CASCADE",
+  });
+
   //------------------------------------------------
   // INTERVIEW ASSOCIATIONS
   //------------------------------------------------
@@ -143,6 +175,16 @@ export const setupAssociations = () => {
   Guest.hasMany(Interview, {
     foreignKey: "guest_id",
     as: "interviews",
+  });
+
+  Guest.belongsTo(User, {
+    foreignKey: "host_id",
+    as: "host",
+  });
+
+  User.hasMany(Guest, {
+    foreignKey: "host_id",
+    as: "hostedGuests",
   });
 
   // Interview → Host (User)
