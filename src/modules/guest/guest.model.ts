@@ -14,7 +14,6 @@ class Guest
   declare bio: string | null;
 
   declare social_media: Record<string, any> | null;
-  declare notes: { title: string; description: string }[] | null;
 
   declare email: string | null;
   declare phone: string | null;
@@ -67,8 +66,6 @@ Guest.init(
       type: DataTypes.JSONB,
       allowNull: true,
     },
-
-    notes: { type: DataTypes.JSONB, allowNull: true },
 
     email: {
       type: DataTypes.STRING,

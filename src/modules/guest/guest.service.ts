@@ -7,6 +7,7 @@ import { sendEmail } from "../../services/email.service";
 import ApiError from "../../middleware/error-handlers/ApiError";
 import { GuestAttributes } from "./guest.interface";
 import Media from "../media/media.model";
+import GuestNote from "../guest_note/guest_note.model";
 
 class GuestService {
   //--------------------------------
@@ -275,6 +276,18 @@ class GuestService {
           model: User,
           as: "host",
           attributes: ["id", "full_name"],
+        },
+        {
+          model: GuestNote,
+          as: "notes",
+          order: [["created_at", "DESC"]],
+          include: [
+            {
+              model: User,
+              as: "creator",
+              attributes: ["id", "full_name"],
+            },
+          ],
         },
       ],
     });

@@ -7,7 +7,7 @@ export interface GuestAttributes {
   bio?: string | null;
 
   social_media?: Record<string, any> | null;
-  notes?: { title: string; description: string }[] | null;
+
   email?: string | null;
   phone?: string | null;
 
