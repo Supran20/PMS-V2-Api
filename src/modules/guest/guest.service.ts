@@ -151,6 +151,8 @@ class GuestService {
           ...data,
           profile_image: mediaId,
           host_id: hostId,
+          status: data.status ?? "not_started",
+          record: data.record ?? false,
           // approved: autoApprove,
           // approved_by: autoApprove ? creator.id : null,
           referred_by: data.referred_by ?? creator.id,

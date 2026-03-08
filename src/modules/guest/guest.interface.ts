@@ -14,6 +14,9 @@ export interface GuestAttributes {
   approved?: boolean;
   approved_by?: string | null;
 
+  status?: "not_started" | "contacted" | "follow_up" | "confirmed";
+  record?: boolean;
+
   referred_by?: string | null;
   profile_image?: string | null;
 
