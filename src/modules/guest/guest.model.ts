@@ -89,6 +89,23 @@ Guest.init(
       allowNull: true,
     },
 
+    status: {
+      type: DataTypes.ENUM(
+        "not_started",
+        "contacted",
+        "follow_up",
+        "confirmed",
+      ),
+      allowNull: false,
+      defaultValue: "not_started",
+    },
+
+    record: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
     referred_by: {
       type: DataTypes.UUID,
       allowNull: true,
