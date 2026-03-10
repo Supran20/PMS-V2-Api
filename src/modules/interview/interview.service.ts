@@ -93,10 +93,10 @@ class InterviewService {
     const transaction = await sequelize.transaction();
 
     try {
-      let { end_time } = data;
+      let end_time: string | undefined = data.end_time ?? undefined;
 
       // Auto-calculate end_time if not provided
-      if (!end_time) {
+      if (!end_time && data.start_time && data.interview_date) {
         const startDate = this.combineDateTime(
           String(data.interview_date),
           data.start_time,
@@ -106,7 +106,7 @@ class InterviewService {
       }
 
       // Validate time order
-      if (end_time <= data.start_time) {
+      if (end_time && data.start_time && end_time <= data.start_time) {
         throw new ApiError(400, "End time must be after start time");
       }
 
@@ -131,18 +131,19 @@ class InterviewService {
       }
 
       // Overlap check
-      await this.checkOverlap(
-        {
-          guest_id: data.guest_id,
-          host_id: hostId,
-          studio_id: data.studio_id,
-          interview_date: String(data.interview_date),
-          start_time: data.start_time,
-          end_time,
-        },
-        transaction,
-      );
-
+      if (data.start_time && end_time && data.interview_date) {
+        await this.checkOverlap(
+          {
+            guest_id: data.guest_id,
+            host_id: hostId,
+            studio_id: data.studio_id,
+            interview_date: data.interview_date,
+            start_time: data.start_time,
+            end_time,
+          },
+          transaction,
+        );
+      }
       const interview = await Interview.create(
         {
           ...data,
@@ -281,9 +282,9 @@ class InterviewService {
 
       const updatedData = { ...interview.toJSON(), ...data };
 
-      let end_time = updatedData.end_time;
+      let end_time: string | null | undefined = updatedData.end_time;
 
-      if (!end_time) {
+      if (!end_time && updatedData.start_time && updatedData.interview_date) {
         const startDate = this.combineDateTime(
           String(updatedData.interview_date),
           updatedData.start_time,
@@ -292,22 +293,28 @@ class InterviewService {
         end_time = calculatedEnd.toTimeString().split(" ")[0];
       }
 
-      if (end_time <= updatedData.start_time) {
+      if (
+        end_time &&
+        updatedData.start_time &&
+        end_time <= updatedData.start_time
+      ) {
         throw new ApiError(400, "End time must be after start time");
       }
 
-      await this.checkOverlap(
-        {
-          guest_id: updatedData.guest_id,
-          host_id: updatedData.host_id,
-          studio_id: updatedData.studio_id,
-          interview_date: String(updatedData.interview_date),
-          start_time: updatedData.start_time,
-          end_time,
-        },
-        transaction,
-        id,
-      );
+      if (updatedData.start_time && end_time && updatedData.interview_date) {
+        await this.checkOverlap(
+          {
+            guest_id: updatedData.guest_id,
+            host_id: updatedData.host_id,
+            studio_id: updatedData.studio_id,
+            interview_date: updatedData.interview_date,
+            start_time: updatedData.start_time,
+            end_time,
+          },
+          transaction,
+          id,
+        );
+      }
 
       await interview.update(
         {

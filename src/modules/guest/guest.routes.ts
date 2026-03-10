@@ -37,7 +37,7 @@ router.patch(
 router.put(
   "/slug/:slug",
   authenticate,
-  authorize("guest.update"),
+  // authorize("guest.update"),
   uploadMedia,
   validate(updateGuestSchema),
   GuestController.updateBySlug,

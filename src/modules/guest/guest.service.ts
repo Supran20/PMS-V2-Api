@@ -212,7 +212,7 @@ class GuestService {
   //--------------------------------
   static async getAllGuests(): Promise<Guest[]> {
     return await Guest.findAll({
-      order: [["full_name", "ASC"]],
+      order: [["created_at", "DESC"]],
       include: [
         {
           model: Media,
