@@ -4,6 +4,7 @@ import {
   InterviewAttributes,
   InterviewCreationAttributes,
 } from "./interview.interface";
+import { InterviewStatus } from "../../constants/interviewStatus";
 
 class Interview
   extends Model<InterviewAttributes, InterviewCreationAttributes>
@@ -15,17 +16,19 @@ class Interview
   declare host_id: string;
   declare studio_id: string;
 
-  declare interview_date: string;
-  declare start_time: string;
-  declare end_time: string;
+  declare interview_date: string | null;
+  declare start_time: string | null;
+  declare end_time: string | null;
 
   declare interview_status: string | null;
   declare live_status: string | null;
 
   declare priority: number;
+  declare status: InterviewStatus;
 
   declare google_drive_link: string | null;
   declare youtube_link: string | null;
+  declare youtube_title: string | null;
 
   declare created_by: string | null;
   declare updated_by: string | null;
@@ -68,17 +71,17 @@ Interview.init(
 
     interview_date: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
 
     start_time: {
       type: DataTypes.TIME,
-      allowNull: false,
+      allowNull: true,
     },
 
     end_time: {
       type: DataTypes.TIME,
-      allowNull: false,
+      allowNull: true,
     },
 
     interview_status: {
@@ -93,6 +96,20 @@ Interview.init(
       defaultValue: "not_live",
     },
 
+    status: {
+      type: DataTypes.ENUM(
+        "scheduled",
+        "postponed",
+        "cancelled",
+        "recorded",
+        "editing",
+        "post_editing",
+        "published",
+      ),
+      allowNull: false,
+      defaultValue: "scheduled",
+    },
+
     priority: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -105,6 +122,11 @@ Interview.init(
     },
 
     youtube_link: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
+    youtube_title: {
       type: DataTypes.STRING,
       allowNull: true,
     },

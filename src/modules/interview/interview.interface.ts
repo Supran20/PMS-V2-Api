@@ -1,3 +1,5 @@
+import { InterviewStatus } from "../../constants/interviewStatus";
+
 export interface InterviewAttributes {
   id: string;
 
@@ -5,17 +7,20 @@ export interface InterviewAttributes {
   host_id: string;
   studio_id: string;
 
-  interview_date: string; // YYYY-MM-DD
-  start_time: string; // HH:mm:ss
-  end_time: string; // HH:mm:ss
+  interview_date?: string | null; // YYYY-MM-DD
+  start_time?: string | null; // HH:mm:ss
+  end_time?: string | null; // HH:mm:ss
 
   interview_status?: string | null; // scheduled, completed, cancelled
   live_status?: string | null; // live, recorded, not_live
+
+  status?: InterviewStatus;
 
   priority?: number;
 
   google_drive_link?: string | null;
   youtube_link?: string | null;
+  youtube_title?: string | null;
 
   created_by?: string | null;
   updated_by?: string | null;
@@ -25,11 +30,9 @@ export interface InterviewAttributes {
 }
 
 export interface InterviewCreationAttributes extends Partial<
-  Omit<InterviewAttributes, "id" | "host_id">
+  Omit<InterviewAttributes, "id">
 > {
   guest_id: string;
   studio_id: string;
-  interview_date: string; // YYYY-MM-DD
-  start_time: string; // HH:mm:ss
   host_id?: string;
 }

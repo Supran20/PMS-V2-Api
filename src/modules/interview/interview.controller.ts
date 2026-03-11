@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "../../middleware/authenticate.middleware";
 import InterviewService from "./interview.service";
+
 import {
   createInterviewSchema,
   updateInterviewSchema,
