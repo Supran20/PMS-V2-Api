@@ -10,6 +10,7 @@ import Guest from "../guest/guest.model";
 import User from "../users/user.model";
 import Studio from "../studio/studio.model";
 import { sendEmail } from "../../services/email.service";
+import Media from "../media/media.model";
 
 class InterviewService {
   //--------------------------------
@@ -84,6 +85,81 @@ class InterviewService {
   }
 
   //--------------------------------
+  // Auto reorder episodes (safe)
+  //--------------------------------
+  private static async reorderEpisodes(
+    interviewId: string,
+    newEpisode: number,
+    updaterId: string,
+    transaction: Transaction,
+  ) {
+    const interview = await Interview.findByPk(interviewId, { transaction });
+
+    if (!interview) throw new ApiError(404, "Interview not found");
+
+    const currentEpisode = interview.episode;
+
+    if (currentEpisode === newEpisode) return;
+
+    // lock published episodes
+    const published = await Interview.findAll({
+      where: { status: "published" },
+      attributes: ["episode"],
+      transaction,
+    });
+
+    const publishedEpisodes = published.map((i) => i.episode);
+
+    if (publishedEpisodes.includes(newEpisode)) {
+      throw new ApiError(
+        400,
+        "Cannot place episode over a published interview",
+      );
+    }
+
+    // free the current episode temporarily
+    await interview.update({ episode: -1 }, { transaction });
+
+    if (newEpisode < currentEpisode) {
+      await Interview.increment(
+        { episode: 1 },
+        {
+          where: {
+            episode: {
+              [Op.gte]: newEpisode,
+              [Op.lt]: currentEpisode,
+            },
+            status: { [Op.ne]: "published" },
+          },
+          transaction,
+        },
+      );
+    } else {
+      await Interview.decrement(
+        { episode: 1 },
+        {
+          where: {
+            episode: {
+              [Op.lte]: newEpisode,
+              [Op.gt]: currentEpisode,
+            },
+            status: { [Op.ne]: "published" },
+          },
+          transaction,
+        },
+      );
+    }
+
+    await interview.update(
+      {
+        episode: newEpisode,
+        updated_by: updaterId,
+      },
+      { transaction },
+    );
+  }
+
+  //--------------------------------
   // CREATE Interview
   //--------------------------------
   static async createInterview(
@@ -144,11 +220,25 @@ class InterviewService {
           transaction,
         );
       }
+
+      const maxPriority = await Interview.max("priority", { transaction });
+      const newPriority = ((maxPriority as number) || 0) + 1;
+
+      const existingEpisode = await Interview.findOne({
+        where: { episode: data.episode },
+        transaction,
+      });
+
+      if (existingEpisode) {
+        throw new ApiError(400, "Episode already exists");
+      }
+
       const interview = await Interview.create(
         {
           ...data,
           host_id: hostId,
           end_time,
+          priority: newPriority,
           created_by: creatorId,
           updated_by: creatorId,
         },
@@ -201,15 +291,20 @@ class InterviewService {
   //--------------------------------
   static async getAll(): Promise<Interview[]> {
     return await Interview.findAll({
-      order: [
-        ["priority", "DESC"],
-        ["interview_date", "DESC"],
-      ],
+      order: [["episode", "DESC"]],
       include: [
         {
           model: Guest,
           as: "guest",
           attributes: ["id", "full_name", "email", "slug"],
+
+          include: [
+            {
+              model: Media,
+              as: "profileImage",
+              attributes: ["id", "media_name", "path", "type", "tag_id"],
+            },
+          ],
         },
         {
           model: User,
@@ -266,6 +361,60 @@ class InterviewService {
     }
   }
 
+  //Reorder episode
+  static async assignEpisode(
+    interviewId: string,
+    targetEpisode: number,
+    updaterId: string,
+  ): Promise<void> {
+    const transaction = await sequelize.transaction();
+
+    try {
+      const interview = await Interview.findByPk(interviewId, { transaction });
+
+      if (!interview) {
+        throw new ApiError(404, "Interview not found");
+      }
+
+      const currentEpisode = interview.episode;
+
+      if (currentEpisode === targetEpisode) {
+        await transaction.commit();
+        return;
+      }
+
+      const existing = await Interview.findOne({
+        where: { episode: targetEpisode },
+        transaction,
+      });
+
+      // move dragged interview temporarily
+      await interview.update({ episode: -1 }, { transaction });
+
+      if (existing) {
+        await existing.update(
+          {
+            episode: currentEpisode,
+            updated_by: updaterId,
+          },
+          { transaction },
+        );
+      }
+
+      await interview.update(
+        {
+          episode: targetEpisode,
+          updated_by: updaterId,
+        },
+        { transaction },
+      );
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
   //--------------------------------
   // UPDATE
   //--------------------------------
@@ -279,6 +428,19 @@ class InterviewService {
     try {
       const interview = await Interview.findByPk(id, { transaction });
       if (!interview) throw new ApiError(404, "Interview not found");
+      if (
+        interview.status === "published" &&
+        data.episode &&
+        data.episode !== interview.episode
+      ) {
+        throw new ApiError(400, "Published interviews cannot change episode");
+      }
+
+      if (data.episode && data.episode !== interview.episode) {
+        await this.reorderEpisodes(id, data.episode, updaterId, transaction);
+
+        delete data.episode;
+      }
 
       const updatedData = { ...interview.toJSON(), ...data };
 
@@ -326,6 +488,8 @@ class InterviewService {
       );
 
       await transaction.commit();
+      await interview.reload();
+
       return interview;
     } catch (error) {
       await transaction.rollback();

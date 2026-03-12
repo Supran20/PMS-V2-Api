@@ -83,15 +83,45 @@ export class InterviewController {
   }
 
   //--------------------------------
+  // ASSIGN EPISODE
+  //--------------------------------
+  static async assignEpisode(req: AuthRequest, res: Response) {
+    try {
+      const { interviewId, targetEpisode } = req.body;
+
+      if (!interviewId || !targetEpisode) {
+        return res.status(400).json({
+          success: false,
+          message: "interviewId and targetEpisode required",
+        });
+      }
+
+      await InterviewService.assignEpisode(
+        interviewId,
+        targetEpisode,
+        req.user.id,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Episode reassigned successfully",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  //--------------------------------
   // UPDATE
   //--------------------------------
   static async update(req: AuthRequest, res: Response) {
     try {
-      const validated = updateInterviewSchema.parse(req.body);
-
       const interview = await InterviewService.updateInterview(
         String(req.params.id),
-        validated,
+        req.body,
         req.user.id,
       );
 

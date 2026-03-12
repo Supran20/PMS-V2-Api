@@ -17,6 +17,7 @@ export interface InterviewAttributes {
   status?: InterviewStatus;
 
   priority?: number;
+  episode?: number;
 
   google_drive_link?: string | null;
   youtube_link?: string | null;
