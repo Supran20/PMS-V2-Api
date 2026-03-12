@@ -106,6 +106,12 @@ Guest.init(
       defaultValue: false,
     },
 
+    rejected: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+
     referred_by: {
       type: DataTypes.UUID,
       allowNull: true,

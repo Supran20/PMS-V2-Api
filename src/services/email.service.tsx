@@ -1,10 +1,54 @@
 import nodemailer, { Transporter } from "nodemailer";
+import { render } from "@react-email/render";
+import OtpEmail from "../emails/templates/otp-email";
+import InterviewEmail from "../emails/templates/interview-email";
+import GuestApprovalEmail from "../emails/templates/GuestApprovalEmail";
 
 interface EmailOptions {
   to: string;
   subject: string;
   text: string;
   html?: string;
+}
+
+export function generateOtpEmailHtml(otp: string) {
+  return render(<OtpEmail otp={otp} />);
+}
+
+export async function generateInterviewEmailHtml(
+  hostName: string,
+  guestName: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  studio: string,
+): Promise<string> {
+  return await render(
+    <InterviewEmail
+      hostName={hostName}
+      guestName={guestName}
+      date={date}
+      startTime={startTime}
+      endTime={endTime}
+      studio={studio}
+    />,
+  );
+}
+
+export async function generateGuestApprovalEmailHtml(
+  guestName: string,
+  referredBy: string,
+  designation?: string,
+  hostName?: string,
+): Promise<string> {
+  return render(
+    <GuestApprovalEmail
+      guestName={guestName}
+      referredBy={referredBy}
+      designation={designation}
+      hostName={hostName}
+    />,
+  );
 }
 
 let transporter: Transporter | null = null;

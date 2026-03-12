@@ -1,3 +1,7 @@
+import User from "../users/user.model";
+import Media from "../media/media.model";
+import GuestNote from "../guest_note/guest_note.model";
+
 export interface GuestAttributes {
   id: string;
 
@@ -16,6 +20,7 @@ export interface GuestAttributes {
 
   status?: "not_started" | "contacted" | "follow_up" | "confirmed";
   record?: boolean;
+  rejected?: boolean;
 
   referred_by?: string | null;
   profile_image?: string | null;
@@ -27,6 +32,15 @@ export interface GuestAttributes {
 
   created_at?: Date;
   updated_at?: Date;
+
+  // Add association types
+  referrer?: User;
+  host?: User;
+  approver?: User;
+  creator?: User;
+  updater?: User;
+  profileImage?: Media;
+  notes?: GuestNote[];
 }
 
 export interface GuestCreationAttributes extends Partial<
@@ -34,4 +48,5 @@ export interface GuestCreationAttributes extends Partial<
 > {
   full_name: string;
   slug: string;
+  rejected?: boolean;
 }

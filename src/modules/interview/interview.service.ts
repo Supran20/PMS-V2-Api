@@ -11,6 +11,7 @@ import User from "../users/user.model";
 import Studio from "../studio/studio.model";
 import { sendEmail } from "../../services/email.service";
 import Media from "../media/media.model";
+import { generateInterviewEmailHtml } from "../../services/email.service";
 
 class InterviewService {
   //--------------------------------
@@ -258,22 +259,21 @@ class InterviewService {
       try {
         const subject = "New Interview Assigned";
 
-        const message = `
-          Hello ${host.full_name},
+        const html = generateInterviewEmailHtml(
+          host.full_name,
+          guest.full_name,
+          String(data.interview_date ?? ""),
+          data.start_time ?? "",
+          end_time ?? "",
+          studio.studio_name,
+        );
 
-          You have been assigned a new interview.
-
-          Guest: ${guest.full_name}
-          Date: ${data.interview_date}
-          Time: ${data.start_time} - ${end_time}
-          Studio: ${studio.studio_name}
-
-          Please log in to the system for more details.
-
-          Thank you.
-          `;
-
-        await sendEmail(host.email, subject, message);
+        await sendEmail(
+          host.email,
+          subject,
+          "You have been assigned a new interview.",
+          await html,
+        );
       } catch (emailError) {
         console.error("Email sending failed:", emailError);
         // DO NOT throw error here — interview already created

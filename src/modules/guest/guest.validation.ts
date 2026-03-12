@@ -21,6 +21,7 @@ export const createGuestSchema = z.object({
     .optional(),
 
   record: z.coerce.boolean().optional(),
+  rejected: z.coerce.boolean().optional().default(false),
 
   tag_id: z.string().uuid().optional().nullable(),
 
