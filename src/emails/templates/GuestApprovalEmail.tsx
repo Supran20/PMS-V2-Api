@@ -76,11 +76,12 @@ export default function GuestApprovalEmail({
                 </Text>
               )}
               <Text className="text-base mb-1">Referred By: {referredBy}</Text>
+              {hostName && (
+                <Text className="text-base mb-1">
+                  Assigned Host: {hostName}
+                </Text>
+              )}
             </Section>
-
-            {hostName && (
-              <Text className="text-base mb-1">Assigned Host: {hostName}</Text>
-            )}
 
             <Text className="text-base mb-4">
               Please log in to the system to review and approve this guest.

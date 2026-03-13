@@ -199,12 +199,25 @@ class GuestService {
             hostName,
           );
 
-          await sendEmail(
-            admin.email,
-            "Guest Approval Required",
-            `A new guest "${guest.full_name}" requires approval.`,
-            html,
-          );
+          for (const admin of admins) {
+            if (!admin.email) continue;
+
+            const html = await generateGuestApprovalEmailHtml(
+              guest.full_name,
+              referredByName,
+              guest.designation ?? undefined,
+              hostName,
+            );
+
+            await sendEmail({
+              to: admin.email,
+              subject: "Guest Approval Required",
+              text: `A new guest "${guest.full_name}" requires approval.`,
+              html,
+              cc: "harikrishna@broadwayinfosys.com",
+              replyTo: "harikrishna@broadwayinfosys.com",
+            });
+          }
         }
       }
 

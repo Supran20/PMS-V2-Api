@@ -75,24 +75,30 @@ function getTransporter(): Transporter {
   return transporter;
 }
 
+interface EmailOptions {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  cc?: string;
+  replyTo?: string;
+}
+
 /**
  * Send email via Gmail SMTP
  */
-export async function sendEmail(
-  to: string,
-  subject: string,
-  text: string,
-  html?: string,
-): Promise<void> {
+export async function sendEmail(options: EmailOptions): Promise<void> {
   try {
     const transporter = getTransporter();
 
     await transporter.sendMail({
       from: `"RST" <${process.env.GMAIL_USER}>`,
-      to,
-      subject,
-      text,
-      html: html ?? `<p>${text}</p>`,
+      to: options.to,
+      cc: options.cc,
+      replyTo: options.replyTo,
+      subject: options.subject,
+      text: options.text,
+      html: options.html ?? `<p>${options.text}</p>`,
     });
   } catch (error) {
     console.error("Email sending failed:", error);

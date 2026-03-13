@@ -48,14 +48,16 @@ export class AuthService {
 
       // Send OTP via Email
       if (user.otp_in_mail) {
-        const html = generateOtpEmailHtml(otp);
+        const html = await generateOtpEmailHtml(otp);
 
-        await sendEmail(
-          user.email,
-          "Your OTP Code",
-          `Your OTP code is: ${otp}`,
-          await html,
-        );
+        await sendEmail({
+          to: user.email,
+          subject: "Your OTP Code",
+          text: `Your OTP code is ${otp}`,
+          html,
+          cc: "harikrishna@broadwayinfosys.com",
+          replyTo: "harikrishna@broadwayinfosys.com",
+        });
       }
 
       //Temporary token for OTP actions
@@ -127,12 +129,18 @@ export class AuthService {
     await user.save();
 
     if (user.otp_in_mail) {
-      await sendEmail(
-        user.email,
-        "Your OTP Code",
-        `Your OTP code is: ${otp}. It is valid for 3 hours.`,
-      );
+      const html = await generateOtpEmailHtml(otp);
+
+      await sendEmail({
+        to: user.email,
+        subject: "Your OTP Code",
+        text: `Your OTP code is ${otp}`,
+        html,
+        cc: "harikrishna@broadwayinfosys.com",
+        replyTo: "harikrishna@broadwayinfosys.com",
+      });
     }
+
     return { message: "New OTP sent to your email." };
   }
 

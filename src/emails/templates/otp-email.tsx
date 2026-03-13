@@ -36,12 +36,6 @@ export default function OtpEmail({ otp }: OtpEmailProps) {
                     className="mx-auto"
                   />
                 </Column>
-                <Column>
-                  <Text className="text-xl font-bold m-0">RST</Text>
-                  <Text className="text-gray-500 text-sm m-0">
-                    rst.smtp@broadwayinfosys.com
-                  </Text>
-                </Column>
               </Row>
             </Section>
 
@@ -51,7 +45,7 @@ export default function OtpEmail({ otp }: OtpEmailProps) {
             </Heading>
 
             <Text className="text-base mb-4 text-center">
-              Your OTP code is:
+              Use the following One-Time Password to complete your verification.
             </Text>
 
             {/* OTP BOX */}
@@ -67,9 +61,13 @@ export default function OtpEmail({ otp }: OtpEmailProps) {
               If you did not request this code, you can safely ignore this
               email.
             </Text>
+
+            <Text className="text-sm text-gray-500 text-center">
+              © 2026 Your Company. All rights reserved.
+            </Text>
           </Container>
         </Body>
       </Tailwind>
     </Html>
-  );
+  );  
 }
