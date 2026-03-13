@@ -22,6 +22,11 @@ router.get("/", authenticate, InterviewController.getAll);
 router.get("/:id", authenticate, InterviewController.getById);
 
 router.patch("/reorder", authenticate, InterviewController.reorder);
+router.patch(
+  "/assign-episode",
+  authenticate,
+  InterviewController.assignEpisode,
+);
 
 router.put(
   "/:id",

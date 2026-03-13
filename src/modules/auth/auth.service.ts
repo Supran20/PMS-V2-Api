@@ -5,6 +5,7 @@ import User from "../../modules/users/user.model";
 import Role from "../../modules/roles/role.model";
 import Permission from "../../modules/permissions/permission.model";
 import { sendEmail } from "../../services/email.service";
+import { generateOtpEmailHtml } from "../../services/email.service";
 
 const ACCESS_TOKEN_EXPIRY = "8h";
 const REFRESH_TOKEN_EXPIRY = "8h";
@@ -47,10 +48,13 @@ export class AuthService {
 
       // Send OTP via Email
       if (user.otp_in_mail) {
+        const html = generateOtpEmailHtml(otp);
+
         await sendEmail(
           user.email,
           "Your OTP Code",
-          `Your OTP code is: ${otp}. It is valid for 3 hours.`,
+          `Your OTP code is: ${otp}`,
+          await html,
         );
       }
 

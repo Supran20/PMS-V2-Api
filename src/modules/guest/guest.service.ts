@@ -8,6 +8,7 @@ import ApiError from "../../middleware/error-handlers/ApiError";
 import { GuestAttributes } from "./guest.interface";
 import Media from "../media/media.model";
 import GuestNote from "../guest_note/guest_note.model";
+import { generateGuestApprovalEmailHtml } from "../../services/email.service";
 
 class GuestService {
   //--------------------------------
@@ -152,7 +153,6 @@ class GuestService {
           profile_image: mediaId,
           host_id: hostId,
           status: data.status ?? "not_started",
-          record: data.record ?? false,
           // approved: autoApprove,
           // approved_by: autoApprove ? creator.id : null,
           referred_by: data.referred_by ?? creator.id,
@@ -167,28 +167,46 @@ class GuestService {
       // --------------------------------
       // 5️⃣ Notify Admins if needed
       // --------------------------------
-      // if (!autoApprove) {
-      //   const admins = await User.findAll({
-      //     include: [
-      //       {
-      //         model: Role,
-      //         as: "roles",
-      //         where: { role_name: "Admin" },
-      //         through: { attributes: [] },
-      //       },
-      //     ],
-      //   });
 
-      //   for (const admin of admins) {
-      //     if (admin.email) {
-      //       await sendEmail(
-      //         admin.email,
-      //         "Guest Approval Required",
-      //         `A new guest "${guest.full_name}" requires approval.`,
-      //       );
-      //     }
-      //   }
-      // }
+      // Fetch the guest including referrer and host details
+      const guestWithRelations = (await Guest.findByPk(guest.id, {
+        include: [
+          { model: User, as: "referrer", attributes: ["full_name"] },
+          { model: User, as: "host", attributes: ["full_name"] },
+        ],
+      })) as Guest & { referrer?: User; host?: User };
+
+      const referredByName = guestWithRelations.referrer?.full_name ?? "N/A";
+      const hostName = guestWithRelations.host?.full_name ?? "N/A";
+
+      const admins = await User.findAll({
+        include: [
+          {
+            model: Role,
+            as: "roles",
+            where: { role_name: "Admin" },
+            through: { attributes: [] },
+          },
+        ],
+      });
+
+      for (const admin of admins) {
+        if (admin.email) {
+          const html = await generateGuestApprovalEmailHtml(
+            guest.full_name,
+            referredByName,
+            guest.designation ?? undefined,
+            hostName,
+          );
+
+          await sendEmail(
+            admin.email,
+            "Guest Approval Required",
+            `A new guest "${guest.full_name}" requires approval.`,
+            html,
+          );
+        }
+      }
 
       return guest;
     } catch (error) {
