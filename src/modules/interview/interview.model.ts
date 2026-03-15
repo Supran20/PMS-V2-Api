@@ -5,6 +5,9 @@ import {
   InterviewCreationAttributes,
 } from "./interview.interface";
 import { InterviewStatus } from "../../constants/interviewStatus";
+import Guest from "../guest/guest.model";
+import User from "../users/user.model";
+import Studio from "../studio/studio.model";
 
 class Interview
   extends Model<InterviewAttributes, InterviewCreationAttributes>
@@ -36,6 +39,10 @@ class Interview
 
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
+
+  declare guest?: Guest;
+  declare host?: User;
+  declare studio?: Studio;
 }
 
 Interview.init(

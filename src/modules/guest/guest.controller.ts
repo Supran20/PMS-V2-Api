@@ -73,6 +73,26 @@ export class GuestController {
     }
   }
 
+  static async reject(req: AuthRequest, res: Response) {
+    try {
+      const guest = await GuestService.rejectGuest(
+        String(req.params.id),
+        req.user,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Guest rejected successfully",
+        data: guest,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   static async getBySlug(req: AuthRequest, res: Response) {
     try {
       const guest = await GuestService.getGuestBySlug(String(req.params.slug));

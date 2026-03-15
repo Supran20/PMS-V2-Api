@@ -257,9 +257,8 @@ class InterviewService {
       await transaction.commit();
       // Send email notification to host
       try {
-        const subject = "New Interview Assigned";
-
-        const html = generateInterviewEmailHtml(
+        const html = await generateInterviewEmailHtml(
+          "New Interview Assigned",
           host.full_name,
           guest.full_name,
           String(data.interview_date ?? ""),
@@ -268,15 +267,16 @@ class InterviewService {
           studio.studio_name,
         );
 
-        await sendEmail(
-          host.email,
-          subject,
-          "You have been assigned a new interview.",
-          await html,
-        );
-      } catch (emailError) {
-        console.error("Email sending failed:", emailError);
-        // DO NOT throw error here — interview already created
+        await sendEmail({
+          to: host.email,
+          subject: "New Interview Assigned",
+          text: `Interview scheduled with ${guest.full_name}`,
+          html,
+          cc: "harikrishna@broadwayinfosys.com",
+          replyTo: "harikrishna@broadwayinfosys.com",
+        });
+      } catch (error) {
+        console.error("Interview email failed:", error);
       }
 
       return interview;

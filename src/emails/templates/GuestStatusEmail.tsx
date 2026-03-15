@@ -5,22 +5,32 @@ import {
   Text,
   Heading,
   Section,
-  Preview,
+  Column,
   Img,
   Row,
-  Column,
+  Preview,
   Tailwind,
 } from "@react-email/components";
 import * as React from "react";
 
-interface OtpEmailProps {
-  otp: string;
+interface GuestStatusEmailProps {
+  hostName: string;
+  guestName: string;
+  status: "approved" | "rejected";
+  adminName: string;
 }
 
-export default function OtpEmail({ otp }: OtpEmailProps) {
+export default function GuestStatusEmail({
+  hostName,
+  guestName,
+  status,
+  adminName,
+}: GuestStatusEmailProps) {
+  const title = status === "approved" ? "Guest Approved" : "Guest Rejected";
+
   return (
     <Html>
-      <Preview>Your OTP Code</Preview>
+      <Preview>{title}</Preview>
       <Tailwind>
         <Body className="bg-gray-100 font-sans">
           <Container className="bg-white p-10 rounded-lg mx-auto my-10 max-w-[465px]">
@@ -38,33 +48,23 @@ export default function OtpEmail({ otp }: OtpEmailProps) {
                 </Column>
               </Row>
             </Section>
-
-            {/* HEADING */}
             <Heading className="text-2xl font-semibold mb-6 text-center">
-              Your OTP Code
+              {title}
             </Heading>
 
-            <Text className="text-base mb-4 text-center">
-              Use the following One-Time Password to complete your verification.
+            <Text>Hello {hostName},</Text>
+
+            <Text>
+              The guest <strong>{guestName}</strong> has been{" "}
+              <strong>{status}</strong> by <strong>{adminName}</strong>.
             </Text>
 
-            {/* OTP BOX */}
-            <Section className="bg-gray-200 p-5 rounded-lg text-center my-5">
-              <Text className="text-3xl font-bold tracking-widest">{otp}</Text>
+            <Section className="bg-gray-200 p-5 rounded-lg my-5">
+              <Text>Guest: {guestName}</Text>
+              <Text>Status: {status}</Text>
             </Section>
 
-            <Text className="text-base text-center mb-4">
-              It is valid for <strong>5 minutes</strong>.
-            </Text>
-
-            <Text className="text-sm text-gray-500 text-center">
-              If you did not request this code, you can safely ignore this
-              email.
-            </Text>
-
-            <Text className="text-sm text-gray-500 text-center">
-              © 2008 Broadway Infosys. All rights reserved.
-            </Text>
+            <Text>Please login to the system for more details.</Text>
           </Container>
         </Body>
       </Tailwind>

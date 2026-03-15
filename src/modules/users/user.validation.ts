@@ -6,7 +6,11 @@ export const createUserSchema = z.object({
   password: z.string().min(8),
   status: z.enum(["active", "inactive"]).optional(),
   profile_image: z.string().uuid().optional(),
-  mobile_number: z.string().optional(),
+  mobile_number: z
+    .string()
+    .regex(/^\+?[1-9]\d{7,14}$/, "Invalid phone number")
+    .optional(),
+
   enable_otp_login: z.boolean().optional(),
   otp_in_mail: z.boolean().optional(),
   otp_in_sms: z.boolean().optional(),

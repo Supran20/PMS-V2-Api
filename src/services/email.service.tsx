@@ -3,19 +3,14 @@ import { render } from "@react-email/render";
 import OtpEmail from "../emails/templates/otp-email";
 import InterviewEmail from "../emails/templates/interview-email";
 import GuestApprovalEmail from "../emails/templates/GuestApprovalEmail";
-
-interface EmailOptions {
-  to: string;
-  subject: string;
-  text: string;
-  html?: string;
-}
+import GuestStatusEmail from "../emails/templates/GuestStatusEmail";
 
 export function generateOtpEmailHtml(otp: string) {
   return render(<OtpEmail otp={otp} />);
 }
 
 export async function generateInterviewEmailHtml(
+  title: string,
   hostName: string,
   guestName: string,
   date: string,
@@ -25,6 +20,7 @@ export async function generateInterviewEmailHtml(
 ): Promise<string> {
   return await render(
     <InterviewEmail
+      title={title}
       hostName={hostName}
       guestName={guestName}
       date={date}
@@ -47,6 +43,22 @@ export async function generateGuestApprovalEmailHtml(
       referredBy={referredBy}
       designation={designation}
       hostName={hostName}
+    />,
+  );
+}
+
+export async function generateGuestStatusEmailHtml(
+  hostName: string,
+  guestName: string,
+  status: "approved" | "rejected",
+  adminName: string,
+): Promise<string> {
+  return render(
+    <GuestStatusEmail
+      hostName={hostName}
+      guestName={guestName}
+      status={status}
+      adminName={adminName}
     />,
   );
 }
@@ -75,24 +87,30 @@ function getTransporter(): Transporter {
   return transporter;
 }
 
+interface EmailOptions {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  cc?: string;
+  replyTo?: string;
+}
+
 /**
  * Send email via Gmail SMTP
  */
-export async function sendEmail(
-  to: string,
-  subject: string,
-  text: string,
-  html?: string,
-): Promise<void> {
+export async function sendEmail(options: EmailOptions): Promise<void> {
   try {
     const transporter = getTransporter();
 
     await transporter.sendMail({
       from: `"RST" <${process.env.GMAIL_USER}>`,
-      to,
-      subject,
-      text,
-      html: html ?? `<p>${text}</p>`,
+      to: options.to,
+      cc: options.cc,
+      replyTo: options.replyTo,
+      subject: options.subject,
+      text: options.text,
+      html: options.html ?? `<p>${options.text}</p>`,
     });
   } catch (error) {
     console.error("Email sending failed:", error);

@@ -38,7 +38,7 @@ export default function GuestApprovalEmail({
                 <Column className="w-[60px]">
                   <Img
                     src="https://rstpms.realstorytime.com/_next/image?url=%2Frst.png&w=256&q=75"
-                    width="40"
+                    width="80"
                     height="40"
                     alt="RST"
                     className="mx-auto"
@@ -76,11 +76,12 @@ export default function GuestApprovalEmail({
                 </Text>
               )}
               <Text className="text-base mb-1">Referred By: {referredBy}</Text>
+              {hostName && (
+                <Text className="text-base mb-1">
+                  Assigned Host: {hostName}
+                </Text>
+              )}
             </Section>
-
-            {hostName && (
-              <Text className="text-base mb-1">Assigned Host: {hostName}</Text>
-            )}
 
             <Text className="text-base mb-4">
               Please log in to the system to review and approve this guest.
@@ -108,6 +109,10 @@ export default function GuestApprovalEmail({
             <Text className="text-sm text-gray-500 text-center mt-6">
               If you believe this request is incorrect, please contact the
               administrator.
+            </Text>
+
+            <Text className="text-sm text-gray-500 text-center">
+              © 2008 Broadway Infosys. All rights reserved.
             </Text>
           </Container>
         </Body>

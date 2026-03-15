@@ -21,6 +21,7 @@ export class User
   declare otp: string | null;
   declare otp_expires_at: Date | null;
   declare remember_token: string | null;
+  declare remember_token_expires_at: Date | null;
   declare profile_image: string | null;
   declare mobile_number: string | null;
   declare enable_otp_login: boolean;
@@ -77,6 +78,11 @@ User.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    remember_token_expires_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+
     profile_image: {
       type: DataTypes.UUID,
       allowNull: true,
