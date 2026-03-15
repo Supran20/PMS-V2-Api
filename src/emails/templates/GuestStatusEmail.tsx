@@ -5,6 +5,9 @@ import {
   Text,
   Heading,
   Section,
+  Column,
+  Img,
+  Row,
   Preview,
   Tailwind,
 } from "@react-email/components";
@@ -31,6 +34,20 @@ export default function GuestStatusEmail({
       <Tailwind>
         <Body className="bg-gray-100 font-sans">
           <Container className="bg-white p-10 rounded-lg mx-auto my-10 max-w-[465px]">
+            {/* HEADER */}
+            <Section className="mb-8">
+              <Row className="items-center">
+                <Column className="w-[60px]">
+                  <Img
+                    src="https://rstpms.realstorytime.com/_next/image?url=%2Frst.png&w=256&q=75"
+                    width="80"
+                    height="40"
+                    alt="RST"
+                    className="mx-auto"
+                  />
+                </Column>
+              </Row>
+            </Section>
             <Heading className="text-2xl font-semibold mb-6 text-center">
               {title}
             </Heading>

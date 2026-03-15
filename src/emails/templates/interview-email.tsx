@@ -44,7 +44,7 @@ export default function InterviewEmail({
                 <Column className="w-[60px]">
                   <Img
                     src="https://rstpms.realstorytime.com/_next/image?url=%2Frst.png&w=256&q=75"
-                    width="40"
+                    width="80"
                     height="40"
                     alt="RST"
                     className="mx-auto"
@@ -61,7 +61,8 @@ export default function InterviewEmail({
             <Text className="text-base mb-2">Hello {hostName},</Text>
 
             <Text className="text-base mb-4">
-              You have been assigned a new interview. Details below:
+              You have been assigned a new guest request. Kindly review the
+              details provided below.
             </Text>
 
             {/* DETAILS BOX */}
@@ -77,7 +78,7 @@ export default function InterviewEmail({
             </Section>
 
             <Text className="text-base mb-4">
-              Please log in to the system for more details.
+              Please login to the system for more details.
             </Text>
 
             <Text className="text-sm text-gray-500 text-center mt-6">

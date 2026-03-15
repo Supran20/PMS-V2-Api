@@ -38,7 +38,7 @@ export default function GuestApprovalEmail({
                 <Column className="w-[60px]">
                   <Img
                     src="https://rstpms.realstorytime.com/_next/image?url=%2Frst.png&w=256&q=75"
-                    width="40"
+                    width="80"
                     height="40"
                     alt="RST"
                     className="mx-auto"

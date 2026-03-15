@@ -30,7 +30,7 @@ export default function OtpEmail({ otp }: OtpEmailProps) {
                 <Column className="w-[60px]">
                   <Img
                     src="https://rstpms.realstorytime.com/_next/image?url=%2Frst.png&w=256&q=75"
-                    width="40"
+                    width="80"
                     height="40"
                     alt="RST"
                     className="mx-auto"
@@ -54,7 +54,7 @@ export default function OtpEmail({ otp }: OtpEmailProps) {
             </Section>
 
             <Text className="text-base text-center mb-4">
-              It is valid for <strong>3 hours</strong>.
+              It is valid for <strong>5 minutes</strong>.
             </Text>
 
             <Text className="text-sm text-gray-500 text-center">

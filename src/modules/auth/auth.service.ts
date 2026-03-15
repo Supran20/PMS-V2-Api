@@ -6,9 +6,13 @@ import Role from "../../modules/roles/role.model";
 import Permission from "../../modules/permissions/permission.model";
 import { sendEmail } from "../../services/email.service";
 import { generateOtpEmailHtml } from "../../services/email.service";
+import { sendSms } from "../../services/sms.service";
 
 const ACCESS_TOKEN_EXPIRY = "8h";
 const REFRESH_TOKEN_EXPIRY = "8h";
+
+const OTP_EXPIRY_MINUTES = 5;
+const TEMP_TOKEN_EXPIRY = "5m";
 
 export class AuthService {
   //Generate access and refresh tokens
@@ -40,7 +44,7 @@ export class AuthService {
     // If OTP is enabled for the user
     if (user.enable_otp_login) {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const otpExpiry = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3 hours
+      const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000); // 5 MINUTES
 
       user.otp = otp;
       user.otp_expires_at = otpExpiry;
@@ -60,11 +64,19 @@ export class AuthService {
         });
       }
 
+      // Send OTP via SMS
+      if (user.otp_in_sms && user.mobile_number) {
+        await sendSms(
+          user.mobile_number,
+          `Your OTP code is ${otp}. It expires in 5 minutes.`,
+        );
+      }
+
       //Temporary token for OTP actions
       const tempToken = jwt.sign(
         { email: user.email },
         process.env.JWT_SECRET_KEY!,
-        { expiresIn: "15m" },
+        { expiresIn: TEMP_TOKEN_EXPIRY },
       );
 
       return {
@@ -122,7 +134,7 @@ export class AuthService {
     if (!user) throw new Error("User not found");
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3 hours
+    const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000); // 5 MINUTES
 
     user.otp = otp;
     user.otp_expires_at = otpExpiry;
@@ -139,6 +151,13 @@ export class AuthService {
         cc: "harikrishna@broadwayinfosys.com",
         replyTo: "harikrishna@broadwayinfosys.com",
       });
+    }
+
+    if (user.otp_in_sms && user.mobile_number) {
+      await sendSms(
+        user.mobile_number,
+        `Your OTP code is ${otp}. It expires in 5 minutes.`,
+      );
     }
 
     return { message: "New OTP sent to your email." };

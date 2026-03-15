@@ -9,6 +9,7 @@ export interface UserAttributes {
   otp?: string | null;
   otp_expires_at?: Date | null;
   remember_token?: string | null;
+  remember_token_expires_at?: Date | null;
 
   profile_image?: string | null;
   mobile_number?: string | null;
