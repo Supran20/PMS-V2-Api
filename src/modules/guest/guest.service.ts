@@ -9,6 +9,7 @@ import { GuestAttributes } from "./guest.interface";
 import Media from "../media/media.model";
 import GuestNote from "../guest_note/guest_note.model";
 import { generateGuestApprovalEmailHtml } from "../../services/email.service";
+import { generateGuestStatusEmailHtml } from "../../services/email.service";
 
 class GuestService {
   //--------------------------------
@@ -191,34 +192,23 @@ class GuestService {
       });
 
       for (const admin of admins) {
-        if (admin.email) {
-          const html = await generateGuestApprovalEmailHtml(
-            guest.full_name,
-            referredByName,
-            guest.designation ?? undefined,
-            hostName,
-          );
+        if (!admin.email) continue;
 
-          for (const admin of admins) {
-            if (!admin.email) continue;
+        const html = await generateGuestApprovalEmailHtml(
+          guest.full_name,
+          referredByName,
+          guest.designation ?? undefined,
+          hostName,
+        );
 
-            const html = await generateGuestApprovalEmailHtml(
-              guest.full_name,
-              referredByName,
-              guest.designation ?? undefined,
-              hostName,
-            );
-
-            await sendEmail({
-              to: admin.email,
-              subject: "Guest Approval Required",
-              text: `A new guest "${guest.full_name}" requires approval.`,
-              html,
-              cc: "harikrishna@broadwayinfosys.com",
-              replyTo: "harikrishna@broadwayinfosys.com",
-            });
-          }
-        }
+        await sendEmail({
+          to: admin.email,
+          subject: "Guest Approval Required",
+          text: `A new guest "${guest.full_name}" requires approval.`,
+          html,
+          cc: "harikrishna@broadwayinfosys.com",
+          replyTo: "harikrishna@broadwayinfosys.com",
+        });
       }
 
       return guest;
@@ -336,7 +326,11 @@ class GuestService {
   // APPROVE Guest
   //--------------------------------
   static async approveGuest(id: string, approver: any): Promise<Guest> {
-    const guest = await Guest.findByPk(id);
+    const guest = await Guest.findByPk(id, {
+      include: [
+        { model: User, as: "host", attributes: ["full_name", "email"] },
+      ],
+    });
 
     if (!guest) {
       throw new ApiError(404, "Guest not found");
@@ -359,6 +353,74 @@ class GuestService {
       approved_by: approver.id,
       updated_by: approver.id,
     });
+
+    const host = (guest as any).host;
+
+    if (host?.email) {
+      const html = await generateGuestStatusEmailHtml(
+        host.full_name,
+        guest.full_name,
+        "approved",
+        approver.full_name,
+      );
+
+      await sendEmail({
+        to: host.email,
+        subject: `Guest Approved - ${guest.full_name}`,
+        text: `Guest ${guest.full_name} has been approved.`,
+        html,
+      });
+    }
+
+    return guest;
+  }
+
+  //--------------------------------
+  // Reject Guest
+  //--------------------------------
+  static async rejectGuest(id: string, approver: any): Promise<Guest> {
+    const guest = await Guest.findByPk(id, {
+      include: [
+        { model: User, as: "host", attributes: ["full_name", "email"] },
+      ],
+    });
+
+    if (!guest) {
+      throw new ApiError(404, "Guest not found");
+    }
+
+    const isAdmin = approver.roles?.some(
+      (role: any) => role.role_name === "Admin",
+    );
+
+    if (!isAdmin) {
+      throw new ApiError(403, "Only Admin can reject guest");
+    }
+
+    await guest.update({
+      rejected: true,
+      approved: false,
+      approved_by: approver.id,
+      updated_by: approver.id,
+    });
+
+    const host = (guest as any).host;
+
+    if (host?.email) {
+      const html = await generateGuestStatusEmailHtml(
+        host.full_name,
+        guest.full_name,
+        "rejected",
+        approver.full_name,
+      );
+
+      await sendEmail({
+        to: host.email,
+        subject: `Guest Rejected - ${guest.full_name}`,
+        text: `Guest ${guest.full_name} has been rejected.`,
+        html,
+      });
+    }
 
     return guest;
   }

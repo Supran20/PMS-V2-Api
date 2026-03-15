@@ -34,6 +34,13 @@ router.patch(
   GuestController.approve,
 );
 
+router.patch(
+  "/:id/reject",
+  authenticate,
+  authorize("guest.update"),
+  GuestController.reject,
+);
+
 router.put(
   "/slug/:slug",
   authenticate,

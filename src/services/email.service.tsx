@@ -3,6 +3,7 @@ import { render } from "@react-email/render";
 import OtpEmail from "../emails/templates/otp-email";
 import InterviewEmail from "../emails/templates/interview-email";
 import GuestApprovalEmail from "../emails/templates/GuestApprovalEmail";
+import GuestStatusEmail from "../emails/templates/GuestStatusEmail";
 
 export function generateOtpEmailHtml(otp: string) {
   return render(<OtpEmail otp={otp} />);
@@ -42,6 +43,22 @@ export async function generateGuestApprovalEmailHtml(
       referredBy={referredBy}
       designation={designation}
       hostName={hostName}
+    />,
+  );
+}
+
+export async function generateGuestStatusEmailHtml(
+  hostName: string,
+  guestName: string,
+  status: "approved" | "rejected",
+  adminName: string,
+): Promise<string> {
+  return render(
+    <GuestStatusEmail
+      hostName={hostName}
+      guestName={guestName}
+      status={status}
+      adminName={adminName}
     />,
   );
 }
