@@ -4,18 +4,12 @@ import OtpEmail from "../emails/templates/otp-email";
 import InterviewEmail from "../emails/templates/interview-email";
 import GuestApprovalEmail from "../emails/templates/GuestApprovalEmail";
 
-interface EmailOptions {
-  to: string;
-  subject: string;
-  text: string;
-  html?: string;
-}
-
 export function generateOtpEmailHtml(otp: string) {
   return render(<OtpEmail otp={otp} />);
 }
 
 export async function generateInterviewEmailHtml(
+  title: string,
   hostName: string,
   guestName: string,
   date: string,
@@ -25,6 +19,7 @@ export async function generateInterviewEmailHtml(
 ): Promise<string> {
   return await render(
     <InterviewEmail
+      title={title}
       hostName={hostName}
       guestName={guestName}
       date={date}

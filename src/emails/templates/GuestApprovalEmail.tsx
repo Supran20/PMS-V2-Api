@@ -110,6 +110,10 @@ export default function GuestApprovalEmail({
               If you believe this request is incorrect, please contact the
               administrator.
             </Text>
+
+            <Text className="text-sm text-gray-500 text-center">
+              © 2008 Broadway Infosys. All rights reserved.
+            </Text>
           </Container>
         </Body>
       </Tailwind>

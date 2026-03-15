@@ -258,6 +258,7 @@ class InterviewService {
       // Send email notification to host
       try {
         const html = await generateInterviewEmailHtml(
+          "New Interview Assigned",
           host.full_name,
           guest.full_name,
           String(data.interview_date ?? ""),

@@ -14,6 +14,7 @@ import {
 import * as React from "react";
 
 interface InterviewEmailProps {
+  title: string;
   hostName: string;
   guestName: string;
   date: string;
@@ -23,6 +24,7 @@ interface InterviewEmailProps {
 }
 
 export default function InterviewEmail({
+  title,
   hostName,
   guestName,
   date,
@@ -32,7 +34,7 @@ export default function InterviewEmail({
 }: InterviewEmailProps) {
   return (
     <Html>
-      <Preview>New Interview Assigned</Preview>
+      <Preview>{title}</Preview>
       <Tailwind>
         <Body className="bg-gray-100 font-sans">
           <Container className="bg-white p-10 rounded-lg mx-auto my-10 max-w-[465px]">
@@ -53,7 +55,7 @@ export default function InterviewEmail({
 
             {/* HEADING */}
             <Heading className="text-2xl font-semibold mb-6 text-center">
-              New Interview Assigned
+              {title}
             </Heading>
 
             <Text className="text-base mb-2">Hello {hostName},</Text>
@@ -83,7 +85,7 @@ export default function InterviewEmail({
               administrator.
             </Text>
             <Text className="text-sm text-gray-500 text-center">
-              © 2026 Your Company. All rights reserved.
+              © 2008 Broadway Infosys. All rights reserved.
             </Text>
           </Container>
         </Body>
