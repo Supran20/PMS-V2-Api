@@ -92,7 +92,7 @@ interface EmailOptions {
   subject: string;
   text: string;
   html?: string;
-  cc?: string;
+  cc?: string[];
   replyTo?: string;
 }
 

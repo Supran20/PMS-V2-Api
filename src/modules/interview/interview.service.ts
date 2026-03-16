@@ -272,7 +272,7 @@ class InterviewService {
           subject: "New Interview Assigned",
           text: `Interview scheduled with ${guest.full_name}`,
           html,
-          cc: "harikrishna@broadwayinfosys.com",
+          cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
           replyTo: "harikrishna@broadwayinfosys.com",
         });
       } catch (error) {

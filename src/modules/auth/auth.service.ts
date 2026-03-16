@@ -59,17 +59,23 @@ export class AuthService {
           subject: "Your OTP Code",
           text: `Your OTP code is ${otp}`,
           html,
-          cc: "harikrishna@broadwayinfosys.com",
-          replyTo: "harikrishna@broadwayinfosys.com",
+          // cc: "harikrishna@broadwayinfosys.com",
+          // replyTo: "harikrishna@broadwayinfosys.com",
         });
       }
 
       // Send OTP via SMS
       if (user.otp_in_sms && user.mobile_number) {
+        const phone = user.mobile_number.startsWith("977")
+          ? user.mobile_number
+          : `977${user.mobile_number}`;
         await sendSms(
-          user.mobile_number,
+          phone,
           `Your OTP code is ${otp}. It expires in 5 minutes.`,
         );
+
+        console.log("OTP generated:", otp);
+        console.log("Sending SMS to:", phone);
       }
 
       //Temporary token for OTP actions
@@ -148,8 +154,8 @@ export class AuthService {
         subject: "Your OTP Code",
         text: `Your OTP code is ${otp}`,
         html,
-        cc: "harikrishna@broadwayinfosys.com",
-        replyTo: "harikrishna@broadwayinfosys.com",
+        // cc: "harikrishna@broadwayinfosys.com",
+        // replyTo: "harikrishna@broadwayinfosys.com",
       });
     }
 
