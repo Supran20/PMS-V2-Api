@@ -206,7 +206,7 @@ class GuestService {
           subject: "Guest Approval Required",
           text: `A new guest "${guest.full_name}" requires approval.`,
           html,
-          cc: "harikrishna@broadwayinfosys.com",
+          cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
           replyTo: "harikrishna@broadwayinfosys.com",
         });
       }
