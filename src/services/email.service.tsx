@@ -36,6 +36,7 @@ export async function generateGuestApprovalEmailHtml(
   referredBy: string,
   designation?: string,
   hostName?: string,
+  creatorName?: string,
 ): Promise<string> {
   return render(
     <GuestApprovalEmail
@@ -43,10 +44,11 @@ export async function generateGuestApprovalEmailHtml(
       referredBy={referredBy}
       designation={designation}
       hostName={hostName}
+      creatorName={creatorName}
     />,
   );
 }
-
+  
 export async function generateGuestStatusEmailHtml(
   hostName: string,
   guestName: string,

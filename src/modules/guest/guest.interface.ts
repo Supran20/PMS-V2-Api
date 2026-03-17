@@ -47,6 +47,5 @@ export interface GuestCreationAttributes extends Partial<
   Omit<GuestAttributes, "id" | "slug" | "created_at" | "updated_at">
 > {
   full_name: string;
-  slug: string;
   rejected?: boolean;
 }

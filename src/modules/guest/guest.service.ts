@@ -10,6 +10,7 @@ import Media from "../media/media.model";
 import GuestNote from "../guest_note/guest_note.model";
 import { generateGuestApprovalEmailHtml } from "../../services/email.service";
 import { generateGuestStatusEmailHtml } from "../../services/email.service";
+import { generateUniqueSlug } from "../../utils/slugify";
 
 class GuestService {
   //--------------------------------
@@ -26,14 +27,7 @@ class GuestService {
       // --------------------------------
       // 1️⃣ Check slug uniqueness
       // --------------------------------
-      const existingSlug = await Guest.findOne({
-        where: { slug: data.slug },
-        transaction,
-      });
-
-      if (existingSlug) {
-        throw new ApiError(400, "Slug already exists");
-      }
+      const slug = await generateUniqueSlug(data.full_name, Guest, transaction);
 
       // --------------------------------
       // 2️⃣ Create Media (if file uploaded)
@@ -145,12 +139,15 @@ class GuestService {
         }
       }
 
+      delete data.slug;
+
       // --------------------------------
       // 4️⃣ Create Guest
       // --------------------------------
       const guest = await Guest.create(
         {
           ...data,
+          slug,
           profile_image: mediaId,
           host_id: hostId,
           status: data.status ?? "not_started",
@@ -199,15 +196,16 @@ class GuestService {
           referredByName,
           guest.designation ?? undefined,
           hostName,
+          creator.full_name,
         );
 
         await sendEmail({
           to: admin.email,
-          subject: "Guest Approval Required",
+          subject: `Guest Approval Requested - ${guest.full_name}`,
           text: `A new guest "${guest.full_name}" requires approval.`,
           html,
-          cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
-          replyTo: "harikrishna@broadwayinfosys.com",
+          // cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
+          // replyTo: "harikrishna@broadwayinfosys.com",
         });
       }
 

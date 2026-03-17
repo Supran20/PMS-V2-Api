@@ -18,6 +18,7 @@ interface GuestApprovalEmailProps {
   referredBy: string;
   designation?: string;
   hostName?: string;
+  creatorName?: string;
 }
 
 export default function GuestApprovalEmail({
@@ -25,10 +26,10 @@ export default function GuestApprovalEmail({
   referredBy,
   designation,
   hostName,
+  creatorName,
 }: GuestApprovalEmailProps) {
   return (
     <Html>
-      <Preview>Guest Approval Required</Preview>
       <Tailwind>
         <Body className="bg-gray-100 font-sans">
           <Container className="bg-white p-10 rounded-lg mx-auto my-10 max-w-[465px]">
@@ -49,14 +50,14 @@ export default function GuestApprovalEmail({
 
             {/* HEADING */}
             <Heading className="text-2xl font-semibold mb-6 text-center">
-              Guest Approval Required
+              Guest Approval Request
             </Heading>
 
-            <Text className="text-base mb-2">Hello Admin,</Text>
+            <Text className="text-base mb-2">Dear Admin,</Text>
 
             <Text className="text-base mb-4">
-              A new guest has been added to the system and requires your
-              approval. Details are as follows:
+              A new guest has been registered in the system and requires your
+              review and approval. Please find the details below:
             </Text>
 
             {/* DETAILS BOX */}
@@ -73,6 +74,11 @@ export default function GuestApprovalEmail({
               {hostName && (
                 <Text className="text-base mb-1">
                   Assigned Host: {hostName}
+                </Text>
+              )}
+              {creatorName && (
+                <Text className="text-base mb-1">
+                  Created By: {creatorName}
                 </Text>
               )}
             </Section>
