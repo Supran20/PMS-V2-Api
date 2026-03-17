@@ -65,6 +65,9 @@ export default function GuestStatusEmail({
             </Section>
 
             <Text>Please login to the system for more details.</Text>
+            <Text className="text-sm text-gray-500 text-center">
+              © {new Date().getFullYear()} Real Story Time. All rights reserved.
+            </Text>
           </Container>
         </Body>
       </Tailwind>

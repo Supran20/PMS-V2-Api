@@ -11,24 +11,19 @@ import {
   generateInterviewEmailHtml,
 } from "../services/email.service";
 
-//-----------------------------------
-// Run every 30 mins
-//-----------------------------------
 export default function interviewNotificationCron() {
   cron.schedule("*/30 * * * *", async () => {
     console.log("[Cron] Checking for upcoming interviews...");
 
     try {
       const now = new Date();
-
-      // Format date for DB comparison
       const todayDate = now.toLocaleDateString("en-CA");
 
-      // Fetch interviews scheduled for today with a start_time
       const interviews = await Interview.findAll({
         where: {
           interview_date: todayDate,
           start_time: { [Op.not]: null },
+          end_time: { [Op.not]: null }, // ensure end_time exists
           interview_status: "scheduled",
         },
         include: [
@@ -38,7 +33,6 @@ export default function interviewNotificationCron() {
         ],
       });
 
-      // Fetch Admins dynamically once per run
       const admins = await User.findAll({
         include: [
           {
@@ -50,28 +44,37 @@ export default function interviewNotificationCron() {
         ],
         attributes: ["email"],
       });
-      const adminEmails = admins.map((admin) => admin.email).filter(Boolean);
+
+      const adminEmails = admins.map((a) => a.email).filter(Boolean);
 
       for (const interview of interviews) {
-        const startTimeParts = interview.start_time?.split(":");
-        if (!startTimeParts) continue;
+        const startParts = interview.start_time?.split(":");
+        const endParts = interview.end_time?.split(":");
+        if (!startParts || !endParts) continue;
 
-        const interviewDateTime = new Date(todayDate);
-        interviewDateTime.setHours(parseInt(startTimeParts[0]));
-        interviewDateTime.setMinutes(parseInt(startTimeParts[1]));
-        interviewDateTime.setSeconds(0);
+        // Build start datetime
+        const startDateTime = new Date(todayDate);
+        startDateTime.setHours(+startParts[0], +startParts[1], 0);
+
+        // Build end datetime
+        const endDateTime = new Date(todayDate);
+        endDateTime.setHours(+endParts[0], +endParts[1], 0);
 
         const diffMinutes =
-          (interviewDateTime.getTime() - now.getTime()) / (1000 * 60);
+          (startDateTime.getTime() - now.getTime()) / (1000 * 60);
 
-        // Only notify if interview is within the next hour
-        if (diffMinutes > 0 && diffMinutes <= 60) {
+        // ✅ CORE CONDITIONS
+        const isBeforeStart = now < startDateTime;
+        const isBeforeEnd = now < endDateTime;
+        const isWithinNextHour = diffMinutes > 0 && diffMinutes <= 60;
+
+        if (isBeforeStart && isBeforeEnd && isWithinNextHour) {
           const guestEmail = interview.guest?.email;
           const hostEmail = interview.host?.email;
 
-          // Prepare email text with dynamic time remaining
           const diffHours = Math.floor(diffMinutes / 60);
           const diffMins = Math.floor(diffMinutes % 60);
+
           const timeRemaining = diffHours
             ? `${diffHours}h ${diffMins}m`
             : `${diffMins} minutes`;
@@ -95,19 +98,19 @@ export default function interviewNotificationCron() {
           for (const to of recipients) {
             await sendEmail({
               to: to!,
-              subject: `Upcoming Interview Reminder - In ${timeRemaining} `,
+              subject: `Upcoming Interview Reminder - In ${timeRemaining}`,
               text,
               html,
             });
           }
 
           console.log(
-            `[Cron] Notification sent for interview ${interview.id} starting at ${interview.start_time} (diff: ${timeRemaining})`,
+            `[Cron] Sent for interview ${interview.id} (starts in ${timeRemaining})`,
           );
         }
       }
     } catch (err) {
-      console.error("[Cron] Failed to send interview notifications:", err);
+      console.error("[Cron] Failed:", err);
     }
   });
 }

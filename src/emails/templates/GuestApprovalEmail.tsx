@@ -44,12 +44,6 @@ export default function GuestApprovalEmail({
                     className="mx-auto"
                   />
                 </Column>
-                <Column>
-                  <Text className="text-xl font-bold m-0">RST</Text>
-                  <Text className="text-gray-500 text-sm m-0">
-                    rst.smtp@broadwayinfosys.com
-                  </Text>
-                </Column>
               </Row>
             </Section>
 
@@ -112,7 +106,7 @@ export default function GuestApprovalEmail({
             </Text>
 
             <Text className="text-sm text-gray-500 text-center">
-              © 2008 Broadway Infosys. All rights reserved.
+              © {new Date().getFullYear()} Real Story Time. All rights reserved.
             </Text>
           </Container>
         </Body>

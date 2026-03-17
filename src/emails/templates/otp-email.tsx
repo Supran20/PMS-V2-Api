@@ -63,7 +63,7 @@ export default function OtpEmail({ otp }: OtpEmailProps) {
             </Text>
 
             <Text className="text-sm text-gray-500 text-center">
-              © 2008 Broadway Infosys. All rights reserved.
+              © {new Date().getFullYear()} Real Story Time. All rights reserved.
             </Text>
           </Container>
         </Body>
