@@ -7,6 +7,8 @@ import guestRoutes from "./guest/guest.routes";
 import studioRoutes from "./studio/studio.routes";
 import interviewRoutes from "./interview/interview.routes";
 import guestNoteRoutes from "./guest_note/guest_note.routes";
+import settingsRoutes from "./settings/settings.routes";
+import permissionSettingsRoutes from "./settings/permission_settings/permission_set.routes";
 
 const router = Router();
 
@@ -18,5 +20,7 @@ router.use("/guests", guestRoutes);
 router.use("/studios", studioRoutes);
 router.use("/interviews", interviewRoutes);
 router.use("/guest_notes", guestNoteRoutes);
+router.use("/settings", settingsRoutes);
+router.use("/permission-sett", permissionSettingsRoutes);
 
 export default router;

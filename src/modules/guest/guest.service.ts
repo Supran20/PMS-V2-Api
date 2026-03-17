@@ -11,6 +11,7 @@ import GuestNote from "../guest_note/guest_note.model";
 import { generateGuestApprovalEmailHtml } from "../../services/email.service";
 import { generateGuestStatusEmailHtml } from "../../services/email.service";
 import { generateUniqueSlug } from "../../utils/slugify";
+import PermissionSettings from "../settings/permission_settings/permission_set.model";
 
 class GuestService {
   //--------------------------------
@@ -177,19 +178,22 @@ class GuestService {
       const referredByName = guestWithRelations.referrer?.full_name ?? "N/A";
       const hostName = guestWithRelations.host?.full_name ?? "N/A";
 
-      const admins = await User.findAll({
-        include: [
-          {
-            model: Role,
-            as: "roles",
-            where: { role_name: "Admin" },
-            through: { attributes: [] },
-          },
-        ],
+      const permission = await PermissionSettings.findOne({
+        where: { permission_type: "guest_approver" },
       });
 
-      for (const admin of admins) {
-        if (!admin.email) continue;
+      if (!permission || !permission.user_ids?.length) {
+        console.warn("No guest approvers configured");
+        return guest; // or fallback to admin if you want
+      }
+
+      const approvers = await User.findAll({
+        where: { id: permission.user_ids },
+        attributes: ["id", "full_name", "email"],
+      });
+
+      for (const approver of approvers) {
+        if (!approver.email) continue;
 
         const html = await generateGuestApprovalEmailHtml(
           guest.full_name,
@@ -200,7 +204,7 @@ class GuestService {
         );
 
         await sendEmail({
-          to: admin.email,
+          to: approver.email,
           subject: `Guest Approval Requested - ${guest.full_name}`,
           text: `A new guest "${guest.full_name}" requires approval.`,
           html,
