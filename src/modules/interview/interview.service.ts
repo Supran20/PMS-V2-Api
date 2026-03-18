@@ -12,6 +12,8 @@ import Studio from "../studio/studio.model";
 import { sendEmail } from "../../services/email.service";
 import Media from "../media/media.model";
 import { generateInterviewEmailHtml } from "../../services/email.service";
+import eventBus from "../../events/eventBus";
+import { EVENTS } from "../../events/events.constants";
 
 class InterviewService {
   //--------------------------------
@@ -255,29 +257,20 @@ class InterviewService {
       }
 
       await transaction.commit();
-      // Send email notification to host
-      try {
-        const html = await generateInterviewEmailHtml(
-          "New Interview Assigned",
-          host.full_name,
-          guest.full_name,
-          String(data.interview_date ?? ""),
-          data.start_time ?? "",
-          end_time ?? "",
-          studio.studio_name,
-        );
 
-        await sendEmail({
-          to: host.email,
-          subject: "New Interview Assigned",
-          text: `Interview scheduled with ${guest.full_name}`,
-          html,
-          cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
-          replyTo: "harikrishna@broadwayinfosys.com",
-        });
-      } catch (error) {
-        console.error("Interview email failed:", error);
-      }
+      eventBus.emit(EVENTS.INTERVIEW_CREATED, {
+        interviewId: interview.id,
+        guestId: guest.id,
+        guestName: guest.full_name,
+        hostId: host.id,
+        hostEmail: host.email,
+        hostName: host.full_name,
+        studioName: studio.studio_name,
+        interviewDate: data.interview_date,
+        startTime: data.start_time,
+        endTime: end_time,
+        creatorId,
+      });
 
       return interview;
     } catch (error) {

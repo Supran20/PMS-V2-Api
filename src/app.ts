@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import routes from "./modules";
 import { corsMiddleware } from "./middleware/cors.middleware";
 import interviewNotificationCron from "./cron/interviewNotification.cron";
+import "./events";
 
 dotenv.config();
 

@@ -11,6 +11,7 @@ import Interview from "./interview/interview.model";
 import GuestNote from "./guest_note/guest_note.model";
 import Settings from "./settings/settings.model";
 import PermissionSettings from "./settings/permission_settings/permission_set.model";
+import Log from "./log/log.model";
 
 export const setupAssociations = () => {
   User.belongsTo(Media, {
@@ -248,6 +249,19 @@ export const setupAssociations = () => {
   });
 
   PermissionSettings.belongsTo(User, {
+    foreignKey: "updated_by",
+    as: "updater",
+  });
+
+  //------------------------------------------------
+  // LOG ASSOCIATIONS
+  //------------------------------------------------
+  Log.belongsTo(User, {
+    foreignKey: "created_by",
+    as: "creator",
+  });
+
+  Log.belongsTo(User, {
     foreignKey: "updated_by",
     as: "updater",
   });

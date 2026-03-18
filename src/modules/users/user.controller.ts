@@ -62,6 +62,22 @@ export class UserController {
     }
   }
 
+  static async getAdmins(req: AuthRequest, res: Response) {
+    try {
+      const hosts = await UserService.getAdmins();
+
+      res.status(200).json({
+        success: true,
+        data: hosts,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   static async update(req: AuthRequest, res: Response) {
     try {
       const validated = updateUserSchema.parse(req.body);

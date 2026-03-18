@@ -48,7 +48,7 @@ export async function generateGuestApprovalEmailHtml(
     />,
   );
 }
-  
+
 export async function generateGuestStatusEmailHtml(
   hostName: string,
   guestName: string,
@@ -106,7 +106,7 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
     const transporter = getTransporter();
 
     await transporter.sendMail({
-      from: `"RST" <${process.env.GMAIL_USER}>`,
+      from: `"Real Story Time" <${process.env.GMAIL_USER}>`,
       to: options.to,
       cc: options.cc,
       replyTo: options.replyTo,

@@ -16,6 +16,7 @@ router.get(
 );
 
 router.get("/hosts", authenticate, UserController.getHosts);
+router.get("/admins", authenticate, UserController.getAdmins);
 
 router.get(
   "/:id",

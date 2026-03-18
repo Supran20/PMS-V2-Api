@@ -11,10 +11,10 @@ const router = Router();
 router.post("/", authenticate, validate(createTagSchema), TagController.create);
 
 // Get all tags
-router.get("/", TagController.getAll);
+router.get("/", authenticate, TagController.getAll);
 
 // Get tag by ID
-router.get("/:id", TagController.getById);
+router.get("/:id", authenticate, TagController.getById);
 
 //Get tag by slug
 router.get("/slug/:slug", authenticate, TagController.getTagBySlug);
@@ -24,7 +24,7 @@ router.put(
   "/:id",
   authenticate,
   validate(updateTagSchema),
-  TagController.update
+  TagController.update,
 );
 
 // Delete tag by ID
