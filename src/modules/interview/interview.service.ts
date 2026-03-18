@@ -98,32 +98,56 @@ class InterviewService {
   ) {
     const interview = await Interview.findByPk(interviewId, { transaction });
 
-    if (!interview) throw new ApiError(404, "Interview not found");
+    if (!interview) {
+      throw new ApiError(404, "Interview not found");
+    }
 
     const currentEpisode = interview.episode;
 
     if (currentEpisode === newEpisode) return;
 
-    // lock published episodes
-    const published = await Interview.findAll({
-      where: { status: "published" },
-      attributes: ["episode"],
+    if (interview.status === "published") {
+      throw new ApiError(400, "Published interview cannot be reordered");
+    }
+
+    const targetConflict = await Interview.findOne({
+      where: {
+        episode: newEpisode,
+        status: "published",
+      },
       transaction,
     });
 
-    const publishedEpisodes = published.map((i) => i.episode);
-
-    if (publishedEpisodes.includes(newEpisode)) {
+    if (targetConflict) {
       throw new ApiError(
         400,
-        "Cannot place episode over a published interview",
+        "Cannot move to a position occupied by a published interview",
       );
     }
 
-    // free the current episode temporarily
-    await interview.update({ episode: -1 }, { transaction });
+    //--------------------------------
+    // STEP 1: TEMP MOVE (avoid conflict)
+    //--------------------------------
+    await interview.update({ episode: 0 }, { transaction });
 
-    if (newEpisode < currentEpisode) {
+    //--------------------------------
+    // STEP 2: SHIFT OTHERS
+    //--------------------------------
+    if (newEpisode > currentEpisode) {
+      await Interview.decrement(
+        { episode: 1 },
+        {
+          where: {
+            episode: {
+              [Op.gt]: currentEpisode,
+              [Op.lte]: newEpisode,
+            },
+            status: { [Op.ne]: "published" },
+          },
+          transaction,
+        },
+      );
+    } else {
       await Interview.increment(
         { episode: 1 },
         {
@@ -137,22 +161,11 @@ class InterviewService {
           transaction,
         },
       );
-    } else {
-      await Interview.decrement(
-        { episode: 1 },
-        {
-          where: {
-            episode: {
-              [Op.lte]: newEpisode,
-              [Op.gt]: currentEpisode,
-            },
-            status: { [Op.ne]: "published" },
-          },
-          transaction,
-        },
-      );
     }
 
+    //--------------------------------
+    // STEP 3: PLACE FINAL
+    //--------------------------------
     await interview.update(
       {
         episode: newEpisode,
@@ -227,13 +240,19 @@ class InterviewService {
       const maxPriority = await Interview.max("priority", { transaction });
       const newPriority = ((maxPriority as number) || 0) + 1;
 
-      const existingEpisode = await Interview.findOne({
-        where: { episode: data.episode },
+      const existingPublished = await Interview.findOne({
+        where: {
+          episode: data.episode,
+          status: "published",
+        },
         transaction,
       });
 
-      if (existingEpisode) {
-        throw new ApiError(400, "Episode already exists");
+      if (existingPublished) {
+        throw new ApiError(
+          400,
+          "Episode already used by a published interview",
+        );
       }
 
       const interview = await Interview.create(
@@ -363,43 +382,11 @@ class InterviewService {
     const transaction = await sequelize.transaction();
 
     try {
-      const interview = await Interview.findByPk(interviewId, { transaction });
-
-      if (!interview) {
-        throw new ApiError(404, "Interview not found");
-      }
-
-      const currentEpisode = interview.episode;
-
-      if (currentEpisode === targetEpisode) {
-        await transaction.commit();
-        return;
-      }
-
-      const existing = await Interview.findOne({
-        where: { episode: targetEpisode },
+      await this.reorderEpisodes(
+        interviewId,
+        targetEpisode,
+        updaterId,
         transaction,
-      });
-
-      // move dragged interview temporarily
-      await interview.update({ episode: -1 }, { transaction });
-
-      if (existing) {
-        await existing.update(
-          {
-            episode: currentEpisode,
-            updated_by: updaterId,
-          },
-          { transaction },
-        );
-      }
-
-      await interview.update(
-        {
-          episode: targetEpisode,
-          updated_by: updaterId,
-        },
-        { transaction },
       );
 
       await transaction.commit();
@@ -485,6 +472,7 @@ class InterviewService {
 
       return interview;
     } catch (error) {
+      console.log(error);
       await transaction.rollback();
       throw error;
     }

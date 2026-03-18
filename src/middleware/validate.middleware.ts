@@ -10,6 +10,7 @@ const validate =
           try {
             req.body[field] = JSON.parse(req.body[field]);
           } catch (err) {
+            console.log(err);
             throw new Error(`Invalid ${field} JSON format`);
           }
         }
@@ -21,6 +22,8 @@ const validate =
 
       next();
     } catch (err) {
+      console.log(err);
+
       if (err instanceof ZodError) {
         return res.status(400).json({
           success: false,

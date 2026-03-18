@@ -71,8 +71,8 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
           subject: `Guest Approval Requested - ${guestName}`,
           text: `A new guest "${guestName}" requires approval.`,
           html,
-          cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
-          replyTo: "harikrishna@broadwayinfosys.com",
+          //   cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
+          //   replyTo: "harikrishna@broadwayinfosys.com",
         });
 
         // ✅ Mark success

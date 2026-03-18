@@ -96,12 +96,18 @@ export default function interviewNotificationCron() {
           );
 
           for (const to of recipients) {
-            await sendEmail({
-              to: to!,
-              subject: `Upcoming Interview Reminder - In ${timeRemaining}`,
-              text,
-              html,
-            });
+            try {
+              console.log(`[Cron] Sending email to ${to}`);
+              await sendEmail({
+                to: to!,
+                subject: `Upcoming Interview Reminder - In ${timeRemaining}`,
+                text,
+                html,
+              });
+              console.log(`[Cron] Email sent to ${to}`);
+            } catch {
+              console.error(`[Cron] Email failed for ${to}`);
+            }
           }
 
           console.log(
