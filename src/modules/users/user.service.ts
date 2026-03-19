@@ -119,6 +119,26 @@ class UserService {
     });
   }
 
+  static async getAdmins(): Promise<User[]> {
+    return await User.findAll({
+      include: [
+        {
+          model: Role,
+          as: "roles",
+          where: { role_name: "Admin" },
+          through: { attributes: [] },
+          required: true, // ensures INNER JOIN (only users with Host role)
+        },
+        {
+          model: Media,
+          as: "profileImage",
+          attributes: ["id", "media_name", "path", "type"],
+        },
+      ],
+      order: [["created_at", "DESC"]],
+    });
+  }
+
   //--------------------------------
   // UPDATE USER
   //--------------------------------

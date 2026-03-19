@@ -86,7 +86,7 @@ export default function InterviewEmail({
               administrator.
             </Text>
             <Text className="text-sm text-gray-500 text-center">
-              © 2008 Broadway Infosys. All rights reserved.
+              © {new Date().getFullYear()} Real Story Time. All rights reserved.
             </Text>
           </Container>
         </Body>

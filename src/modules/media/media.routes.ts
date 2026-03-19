@@ -8,10 +8,10 @@ import { uploadMedia } from "../../middleware/upload.media.middleware";
 const router = Router();
 
 // Get all media
-router.get("/", MediaController.getAllMedia);
+router.get("/", authenticate, MediaController.getAllMedia);
 
 // Get media by ID
-router.get("/:id", MediaController.getMediaById);
+router.get("/:id", authenticate, MediaController.getMediaById);
 
 // Create new media
 router.post(

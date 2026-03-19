@@ -10,6 +10,10 @@ import Media from "../media/media.model";
 import GuestNote from "../guest_note/guest_note.model";
 import { generateGuestApprovalEmailHtml } from "../../services/email.service";
 import { generateGuestStatusEmailHtml } from "../../services/email.service";
+import { generateUniqueSlug } from "../../utils/slugify";
+import PermissionSettings from "../settings/permission_settings/permission_set.model";
+import eventBus from "../../events/eventBus";
+import { EVENTS } from "../../events/events.constants";
 
 class GuestService {
   //--------------------------------
@@ -26,14 +30,7 @@ class GuestService {
       // --------------------------------
       // 1️⃣ Check slug uniqueness
       // --------------------------------
-      const existingSlug = await Guest.findOne({
-        where: { slug: data.slug },
-        transaction,
-      });
-
-      if (existingSlug) {
-        throw new ApiError(400, "Slug already exists");
-      }
+      const slug = await generateUniqueSlug(data.full_name, Guest, transaction);
 
       // --------------------------------
       // 2️⃣ Create Media (if file uploaded)
@@ -145,12 +142,15 @@ class GuestService {
         }
       }
 
+      delete data.slug;
+
       // --------------------------------
       // 4️⃣ Create Guest
       // --------------------------------
       const guest = await Guest.create(
         {
           ...data,
+          slug,
           profile_image: mediaId,
           host_id: hostId,
           status: data.status ?? "not_started",
@@ -165,51 +165,11 @@ class GuestService {
 
       await transaction.commit();
 
-      // --------------------------------
-      // 5️⃣ Notify Admins if needed
-      // --------------------------------
-
-      // Fetch the guest including referrer and host details
-      const guestWithRelations = (await Guest.findByPk(guest.id, {
-        include: [
-          { model: User, as: "referrer", attributes: ["full_name"] },
-          { model: User, as: "host", attributes: ["full_name"] },
-        ],
-      })) as Guest & { referrer?: User; host?: User };
-
-      const referredByName = guestWithRelations.referrer?.full_name ?? "N/A";
-      const hostName = guestWithRelations.host?.full_name ?? "N/A";
-
-      const admins = await User.findAll({
-        include: [
-          {
-            model: Role,
-            as: "roles",
-            where: { role_name: "Admin" },
-            through: { attributes: [] },
-          },
-        ],
+      eventBus.emit(EVENTS.GUEST_CREATED, {
+        guestId: guest.id,
+        guestName: guest.full_name,
+        creatorName: creator.full_name,
       });
-
-      for (const admin of admins) {
-        if (!admin.email) continue;
-
-        const html = await generateGuestApprovalEmailHtml(
-          guest.full_name,
-          referredByName,
-          guest.designation ?? undefined,
-          hostName,
-        );
-
-        await sendEmail({
-          to: admin.email,
-          subject: "Guest Approval Required",
-          text: `A new guest "${guest.full_name}" requires approval.`,
-          html,
-          cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
-          replyTo: "harikrishna@broadwayinfosys.com",
-        });
-      }
 
       return guest;
     } catch (error) {
@@ -357,18 +317,12 @@ class GuestService {
     const host = (guest as any).host;
 
     if (host?.email) {
-      const html = await generateGuestStatusEmailHtml(
-        host.full_name,
-        guest.full_name,
-        "approved",
-        approver.full_name,
-      );
-
-      await sendEmail({
-        to: host.email,
-        subject: `Guest Approved - ${guest.full_name}`,
-        text: `Guest ${guest.full_name} has been approved.`,
-        html,
+      eventBus.emit(EVENTS.GUEST_APPROVED, {
+        guestId: guest.id,
+        guestName: guest.full_name,
+        hostEmail: host.email,
+        hostName: host.full_name,
+        approverName: approver.full_name,
       });
     }
 
@@ -407,18 +361,12 @@ class GuestService {
     const host = (guest as any).host;
 
     if (host?.email) {
-      const html = await generateGuestStatusEmailHtml(
-        host.full_name,
-        guest.full_name,
-        "rejected",
-        approver.full_name,
-      );
-
-      await sendEmail({
-        to: host.email,
-        subject: `Guest Rejected - ${guest.full_name}`,
-        text: `Guest ${guest.full_name} has been rejected.`,
-        html,
+      eventBus.emit(EVENTS.GUEST_REJECTED, {
+        guestId: guest.id,
+        guestName: guest.full_name,
+        hostEmail: host.email,
+        hostName: host.full_name,
+        approverName: approver.full_name,
       });
     }
 

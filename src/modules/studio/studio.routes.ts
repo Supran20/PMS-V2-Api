@@ -13,11 +13,11 @@ router.post(
   StudioController.create,
 );
 
-router.get("/", StudioController.getAll);
+router.get("/", authenticate, StudioController.getAll);
 
-router.get("/:id", StudioController.getById);
+router.get("/:id", authenticate, StudioController.getById);
 
-router.get("/slug/:slug", StudioController.getBySlug);
+router.get("/slug/:slug", authenticate, StudioController.getBySlug);
 router.put(
   "/slug/:slug",
   authenticate,
