@@ -29,6 +29,7 @@ class PermissionSettings
   declare creator?: User;
   declare updater?: User;
   declare settings?: Settings;
+  declare users?: User[];
 }
 
 PermissionSettings.init(
