@@ -203,13 +203,30 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
         studioName,
       );
 
+      const permission = await PermissionSettings.findOne({
+        where: { permission_type: "interview_cc" },
+      });
+
+      const ccUsers =
+        permission &&
+        Array.isArray(permission.user_ids) &&
+        permission.user_ids.length > 0
+          ? await User.findAll({
+              where: { id: permission.user_ids },
+              attributes: ["email"],
+            })
+          : [];
+
+      const ccEmails = ccUsers.map((u) => u.email).filter(Boolean);
+
       await sendEmail({
         to: hostEmail,
         subject: `New Interview Assigned - ${guestName}`,
         text: `You have a new interview scheduled with ${guestName}`,
         html,
-        cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
-        replyTo: "harikrishna@broadwayinfosys.com",
+        cc: ccEmails,
+        // cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
+        // replyTo: "harikrishna@broadwayinfosys.com",
       });
 
       await LogService.markAsSent(log.id);

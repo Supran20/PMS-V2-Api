@@ -5,6 +5,7 @@ import Guest from "../modules/guest/guest.model";
 import User from "../modules/users/user.model";
 import Role from "../modules/roles/role.model";
 import Studio from "../modules/studio/studio.model";
+import PermissionSettings from "../modules/settings/permission_settings/permission_set.model";
 
 import {
   sendEmail,
@@ -17,7 +18,7 @@ export default function interviewNotificationCron() {
 
     try {
       const now = new Date();
-      const todayDate = now.toLocaleDateString("en-CA");
+      const todayDate = now.toISOString().split("T")[0];
 
       const interviews = await Interview.findAll({
         where: {
@@ -52,13 +53,25 @@ export default function interviewNotificationCron() {
         const endParts = interview.end_time?.split(":");
         if (!startParts || !endParts) continue;
 
-        // Build start datetime
-        const startDateTime = new Date(todayDate);
-        startDateTime.setHours(+startParts[0], +startParts[1], 0);
+        const [year, month, day] = todayDate.split("-").map(Number);
 
-        // Build end datetime
-        const endDateTime = new Date(todayDate);
-        endDateTime.setHours(+endParts[0], +endParts[1], 0);
+        const startDateTime = new Date(
+          year,
+          month - 1,
+          day,
+          +startParts[0],
+          +startParts[1],
+          0,
+        );
+
+        const endDateTime = new Date(
+          year,
+          month - 1,
+          day,
+          +endParts[0],
+          +endParts[1],
+          0,
+        );
 
         const diffMinutes =
           (startDateTime.getTime() - now.getTime()) / (1000 * 60);
@@ -91,23 +104,31 @@ export default function interviewNotificationCron() {
 
           const text = `Your interview with ${interview.guest?.full_name} is scheduled at ${interview.start_time} (starting in ${timeRemaining})`;
 
-          const recipients = [guestEmail, hostEmail, ...adminEmails].filter(
-            Boolean,
-          );
+          const permission = await PermissionSettings.findOne({
+            where: { permission_type: "interview_cc" },
+          });
 
-          for (const to of recipients) {
-            try {
-              console.log(`[Cron] Sending email to ${to}`);
-              await sendEmail({
-                to: to!,
-                subject: `Upcoming Interview Reminder - In ${timeRemaining}`,
-                text,
-                html,
-              });
-              console.log(`[Cron] Email sent to ${to}`);
-            } catch {
-              console.error(`[Cron] Email failed for ${to}`);
-            }
+          if (!permission || !permission.user_ids?.length) continue;
+
+          const ccUsers = await User.findAll({
+            where: { id: permission.user_ids },
+            attributes: ["email"],
+          });
+
+          const ccEmails = ccUsers.map((u) => u.email).filter(Boolean);
+
+          if (!hostEmail) continue;
+
+          try {
+            await sendEmail({
+              to: hostEmail,
+              subject: `Upcoming Interview Reminder - In ${timeRemaining}`,
+              text,
+              html,
+              cc: ccEmails,
+            });
+          } catch (err) {
+            console.error(`[Cron] Email failed for ${hostEmail}`);
           }
 
           console.log(

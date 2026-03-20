@@ -101,6 +101,9 @@ class UserService {
   //--------------------------------
   static async getHosts(): Promise<User[]> {
     return await User.findAll({
+      where: {
+        status: "active",
+      },
       include: [
         {
           model: Role,
@@ -121,6 +124,9 @@ class UserService {
 
   static async getAdmins(): Promise<User[]> {
     return await User.findAll({
+      where: {
+        status: "active",
+      },
       include: [
         {
           model: Role,
