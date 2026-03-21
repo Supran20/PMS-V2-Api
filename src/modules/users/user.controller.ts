@@ -8,7 +8,7 @@ export class UserController {
     try {
       const validated = createUserSchema.parse(req.body);
 
-      const user = await UserService.createUser(validated);
+      const user = await UserService.createUser(validated, req.user, req.file);
 
       res.status(201).json({
         success: true,
@@ -85,6 +85,8 @@ export class UserController {
       const user = await UserService.updateUser(
         String(req.params.id),
         validated,
+        req.user,
+        req.file,
       );
 
       res.status(200).json({

@@ -2,10 +2,17 @@ import { Router } from "express";
 import { UserController } from "./user.controller";
 import { authorize } from "../../middleware/authorize.middleware";
 import { authenticate } from "../../middleware/authenticate.middleware";
+import { uploadMedia } from "../../middleware/upload.media.middleware";
 
 const router = Router();
 
-router.post("/", authenticate, authorize("user.manage"), UserController.create);
+router.post(
+  "/",
+  authenticate,
+  authorize("user.manage"),
+  uploadMedia,
+  UserController.create,
+);
 
 router.get(
   "/",
@@ -28,6 +35,7 @@ router.get(
 router.put(
   "/:id",
   authenticate,
+  uploadMedia,
   authorize("user.manage"),
   UserController.update,
 );
