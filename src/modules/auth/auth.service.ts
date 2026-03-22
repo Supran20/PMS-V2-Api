@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../../modules/users/user.model";
 import Role from "../../modules/roles/role.model";
+import Media from "../media/media.model";
 import Permission from "../../modules/permissions/permission.model";
 import { sendEmail } from "../../services/email.service";
 import { generateOtpEmailHtml } from "../../services/email.service";
@@ -225,6 +226,11 @@ export class AuthService {
               through: { attributes: [] },
             },
           ],
+        },
+        {
+          model: Media,
+          as: "profileImage",
+          attributes: ["id", "media_name", "path", "type", "tag_id"],
         },
       ],
     });
