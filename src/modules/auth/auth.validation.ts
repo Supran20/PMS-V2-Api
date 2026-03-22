@@ -5,11 +5,11 @@ export const loginSchema = z.object({
   password: z
     .string()
     .min(6, { message: "Password must be at least 6 characters long" }),
-  rememberMe: z.boolean().optional(),
 });
 
 export const verifyOtpSchema = z.object({
   otp: z.string().length(6, { message: "OTP must be 6 digits" }),
+  rememberMe: z.boolean().optional(),
 });
 
 export const refreshTokenSchema = z.object({

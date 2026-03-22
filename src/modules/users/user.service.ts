@@ -11,7 +11,11 @@ class UserService {
   //--------------------------------
   // CREATE USER
   //--------------------------------
-  static async createUser(data: any): Promise<User> {
+  static async createUser(
+    data: any,
+    creator: any,
+    file?: Express.Multer.File,
+  ): Promise<User> {
     const transaction: Transaction = await sequelize.transaction();
 
     try {
@@ -45,10 +49,44 @@ class UserService {
 
       await user.addRole(role, { transaction });
 
+      if (file) {
+        const originalName = file.originalname;
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, "");
+        const sanitizedMediaName = nameWithoutExt
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+        const mediaPath = `/uploads/media/${file.filename}`;
+
+        const media = await Media.create(
+          {
+            media_name: sanitizedMediaName,
+            path: mediaPath,
+            type: file.mimetype,
+            created_by: creator.id,
+            updated_by: creator.id,
+          },
+          { transaction },
+        );
+
+        user.profile_image = media.id;
+        await user.save({ transaction });
+      }
+
       await transaction.commit();
 
       return user;
     } catch (error) {
+      // 🔥 Cleanup uploaded file if transaction fails
+      if (file) {
+        const fs = await import("fs");
+        const fullPath = file.path;
+
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+
       await transaction.rollback();
       throw error;
     }
@@ -85,6 +123,12 @@ class UserService {
           model: Role,
           as: "roles",
           through: { attributes: [] },
+        },
+
+        {
+          model: Media,
+          as: "profileImage",
+          attributes: ["id", "media_name", "path", "type", "tag_id"],
         },
       ],
     });
@@ -148,7 +192,12 @@ class UserService {
   //--------------------------------
   // UPDATE USER
   //--------------------------------
-  static async updateUser(id: string, data: any): Promise<User> {
+  static async updateUser(
+    id: string,
+    data: any,
+    user: any,
+    file?: Express.Multer.File,
+  ): Promise<User> {
     const transaction = await sequelize.transaction();
 
     try {
@@ -183,10 +232,54 @@ class UserService {
         await user.setRoles([role], { transaction });
       }
 
+      let mediaId = user.profile_image;
+
+      if (file) {
+        const originalName = file.originalname;
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, "");
+        const sanitizedMediaName = nameWithoutExt
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+        const mediaPath = `/uploads/media/${file.filename}`;
+
+        const media = await Media.create(
+          {
+            media_name: sanitizedMediaName,
+            path: mediaPath,
+            type: file.mimetype,
+            created_by: user.id,
+            updated_by: user.id,
+          },
+          { transaction },
+        );
+
+        mediaId = media.id;
+      } else if (data.tag_id && user.profile_image) {
+        await Media.update(
+          {
+            tag_id: data.tag_id,
+            updated_by: null,
+          },
+          { where: { id: user.profile_image }, transaction },
+        );
+      }
+
+      await user.update(
+        { ...userData, profile_image: mediaId },
+        { transaction },
+      );
+
       await transaction.commit();
 
       return user;
     } catch (error) {
+      if (file) {
+        const fs = await import("fs");
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      }
       await transaction.rollback();
       throw error;
     }

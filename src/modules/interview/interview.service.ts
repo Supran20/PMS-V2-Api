@@ -322,6 +322,14 @@ class InterviewService {
           model: User,
           as: "host",
           attributes: ["id", "full_name", "email"],
+
+          include: [
+            {
+              model: Media,
+              as: "profileImage",
+              attributes: ["id", "media_name", "path", "type", "tag_id"],
+            },
+          ],
         },
         {
           model: Studio,

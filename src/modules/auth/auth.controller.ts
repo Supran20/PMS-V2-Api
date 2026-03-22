@@ -26,11 +26,11 @@ export class AuthController {
 
   static async verifyOtp(req: Request, res: Response) {
     try {
-      const { otp } = req.body;
+      const { otp, rememberMe } = req.body;
       const tempToken = req.headers.authorization?.split(" ")[1];
       if (!tempToken) throw new Error("Authorization header missing");
 
-      const result = await AuthService.verifyOtp(otp, tempToken);
+      const result = await AuthService.verifyOtp(otp, tempToken, rememberMe);
       return res.status(200).json(result);
     } catch (error: any) {
       return res.status(400).json({ error: error.message });

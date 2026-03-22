@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../../modules/users/user.model";
 import Role from "../../modules/roles/role.model";
+import Media from "../media/media.model";
 import Permission from "../../modules/permissions/permission.model";
 import { sendEmail } from "../../services/email.service";
 import { generateOtpEmailHtml } from "../../services/email.service";
@@ -39,6 +40,25 @@ export class AuthService {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       throw new Error("Invalid credentials");
+    }
+
+    const now = new Date();
+
+    if (user.enable_otp_login && user.remember_until) {
+      const rememberDate = new Date(user.remember_until);
+
+      if (rememberDate > now) {
+        const { accessToken, refreshToken } = this.generateTokens({
+          id: user.id,
+          email: user.email,
+        });
+
+        return { accessToken, refreshToken };
+      } else {
+        // cleanup expired remember
+        user.remember_until = null;
+        await user.save();
+      }
     }
 
     // If OTP is enabled for the user
@@ -102,7 +122,7 @@ export class AuthService {
 
   /* ================= OTP ================= */
   // Verify OTP and issue JWT token
-  static async verifyOtp(otp: string, token: string) {
+  static async verifyOtp(otp: string, token: string, rememberMe?: boolean) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!) as {
       email: string;
     };
@@ -120,6 +140,16 @@ export class AuthService {
 
     user.otp = null;
     user.otp_expires_at = null;
+
+    if (rememberMe) {
+      const rememberDate = new Date();
+      rememberDate.setDate(rememberDate.getDate() + 30);
+
+      user.remember_until = rememberDate;
+    } else {
+      user.remember_until = null;
+    }
+
     await user.save();
 
     const { accessToken, refreshToken } = this.generateTokens({
@@ -225,6 +255,11 @@ export class AuthService {
               through: { attributes: [] },
             },
           ],
+        },
+        {
+          model: Media,
+          as: "profileImage",
+          attributes: ["id", "media_name", "path", "type", "tag_id"],
         },
       ],
     });
