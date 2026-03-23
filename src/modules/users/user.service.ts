@@ -7,6 +7,17 @@ import ApiError from "../../middleware/error-handlers/ApiError";
 import { UserAttributes } from "./user.interface";
 import Media from "../media/media.model";
 
+const USER_EXCLUDE_FIELDS = [
+  "password",
+  "otp",
+  "otp_expires_at",
+  "remember_token",
+  "remember_token_expires_at",
+  "enable_otp_login",
+  "otp_in_sms",
+  "otp_in_mail",
+];
+
 class UserService {
   //--------------------------------
   // CREATE USER
@@ -97,6 +108,9 @@ class UserService {
   //--------------------------------
   static async getAllUsers(): Promise<User[]> {
     return await User.findAll({
+      attributes: {
+        exclude: USER_EXCLUDE_FIELDS,
+      },
       include: [
         {
           model: Role,
@@ -118,6 +132,9 @@ class UserService {
   //--------------------------------
   static async getUserById(id: string): Promise<User> {
     const user = await User.findByPk(id, {
+      attributes: {
+        exclude: USER_EXCLUDE_FIELDS,
+      },
       include: [
         {
           model: Role,
@@ -145,6 +162,9 @@ class UserService {
   //--------------------------------
   static async getHosts(): Promise<User[]> {
     return await User.findAll({
+      attributes: {
+        exclude: USER_EXCLUDE_FIELDS,
+      },
       where: {
         status: "active",
       },
@@ -168,6 +188,9 @@ class UserService {
 
   static async getAdmins(): Promise<User[]> {
     return await User.findAll({
+      attributes: {
+        exclude: USER_EXCLUDE_FIELDS,
+      },
       where: {
         status: "active",
       },
