@@ -23,5 +23,6 @@ jobs:
             pnpm install
             pnpm build
             pnpm migrate
+            npx sequelize-cli db:seed --seed 20260323053011-seed-settings.js
             pm2 restart rstpms
             pm2 save
