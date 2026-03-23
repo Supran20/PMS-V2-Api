@@ -29,6 +29,14 @@ router.get(
   SettingsController.getById,
 );
 
+// GET BY TYPE
+router.get(
+  "/type/:type",
+  authenticate,
+  authorize("user.manage"),
+  SettingsController.getByType,
+);
+
 // UPDATE
 router.put(
   "/:id",

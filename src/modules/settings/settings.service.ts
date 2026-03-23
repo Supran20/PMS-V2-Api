@@ -51,6 +51,19 @@ class SettingsService {
   }
 
   //--------------------------------
+  // GET SETTINGS BY TYPE
+  //--------------------------------
+  static async getSettingsByType(type: string): Promise<Settings> {
+    const settings = await Settings.findOne({ where: { type } });
+
+    if (!settings) {
+      throw new ApiError(404, "Settings not found");
+    }
+
+    return settings;
+  }
+
+  //--------------------------------
   // UPDATE SETTINGS
   //--------------------------------
   static async updateSettings(
