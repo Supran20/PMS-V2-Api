@@ -73,6 +73,30 @@ export class SettingsController {
   }
 
   //--------------------------------
+  // GET BY TYPE
+  //--------------------------------
+  static async getByType(
+    req: AuthRequest & { params: { type: string } },
+    res: Response,
+  ) {
+    try {
+      const { type } = req.params;
+
+      const settings = await SettingsService.getSettingsByType(type);
+
+      res.status(200).json({
+        success: true,
+        data: settings,
+      });
+    } catch (error: any) {
+      res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  //--------------------------------
   // UPDATE
   //--------------------------------
   static async update(req: AuthRequest, res: Response) {
