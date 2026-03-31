@@ -139,6 +139,19 @@ export const setupAssociations = () => {
     onDelete: "CASCADE",
   });
 
+  //   Guest.belongsToMany(Tags, {
+  //   through: "guest_tags",
+  //   foreignKey: "guest_id",
+  //   otherKey: "tag_id",
+  //   as: "tags_data",
+  // });
+
+  // Tags.belongsToMany(Guest, {
+  //   through: "guest_tags",
+  //   foreignKey: "tag_id",
+  //   otherKey: "guest_id",
+  // });
+
   //------------------------------------------------
   // GUEST NOTE ASSOCIATIONS
   //------------------------------------------------

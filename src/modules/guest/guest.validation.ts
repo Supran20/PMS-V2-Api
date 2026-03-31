@@ -20,10 +20,24 @@ export const createGuestSchema = z.object({
     .enum(["not_started", "contacted", "follow_up", "confirmed"])
     .optional(),
 
+  tags: z
+    .union([
+      z.array(z.string()),
+      z.string().transform((val) => JSON.parse(val)),
+    ])
+    .optional()
+    .nullable(),
+
+  tag_ids: z
+    .union([
+      z.array(z.string()),
+      z.string().transform((val) => JSON.parse(val)),
+    ])
+    .optional()
+    .nullable(),
+
   record: z.coerce.boolean().optional(),
   rejected: z.coerce.boolean().optional().default(false),
-
-  tag_id: z.string().uuid().optional().nullable(),
 
   referred_by: z.string().uuid().optional().nullable(),
   host_id: z.string().uuid().optional().nullable(),

@@ -23,6 +23,8 @@ class Guest
 
   declare referred_by: string | null;
   declare profile_image: string | null;
+  declare tags: string[] | null;
+  declare tag_ids: string[] | null;
 
   declare host_id: string | null;
 
@@ -120,6 +122,18 @@ Guest.init(
     profile_image: {
       type: DataTypes.UUID,
       allowNull: true,
+    },
+
+    tags: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: [],
+    },
+
+    tag_ids: {
+      type: DataTypes.ARRAY(DataTypes.UUID),
+      allowNull: true,
+      defaultValue: [],
     },
 
     host_id: {

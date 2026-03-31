@@ -30,14 +30,14 @@ router.get("/:id", GuestController.getById);
 router.patch(
   "/:id/approve",
   authenticate,
-  authorize("guest.update"),
+  // authorize("guest.update"),
   GuestController.approve,
 );
 
 router.patch(
   "/:id/reject",
   authenticate,
-  authorize("guest.update"),
+  // authorize("guest.update"),
   GuestController.reject,
 );
 
