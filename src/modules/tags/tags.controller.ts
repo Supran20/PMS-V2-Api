@@ -22,15 +22,6 @@ class TagController {
 
       const { slug } = parsed.data;
 
-      // Prevent duplicate slug
-      const exists = await tagService.isSlugTaken(slug);
-      if (exists) {
-        return res.status(409).json({
-          success: false,
-          message: "Slug already exists",
-        });
-      }
-
       const userId = req.user?.id ?? null; // from auth middleware
       const tag = await tagService.createTag(parsed.data, userId);
 

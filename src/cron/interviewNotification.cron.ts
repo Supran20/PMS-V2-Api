@@ -56,21 +56,11 @@ export default function interviewNotificationCron() {
         const [year, month, day] = todayDate.split("-").map(Number);
 
         const startDateTime = new Date(
-          year,
-          month - 1,
-          day,
-          +startParts[0],
-          +startParts[1],
-          0,
+          Date.UTC(year, month - 1, day, +startParts[0], +startParts[1], 0),
         );
 
         const endDateTime = new Date(
-          year,
-          month - 1,
-          day,
-          +endParts[0],
-          +endParts[1],
-          0,
+          Date.UTC(year, month - 1, day, +endParts[0], +endParts[1], 0),
         );
 
         const diffMinutes =
