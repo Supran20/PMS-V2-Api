@@ -13,9 +13,6 @@ const USER_EXCLUDE_FIELDS = [
   "otp_expires_at",
   "remember_token",
   "remember_token_expires_at",
-  "enable_otp_login",
-  "otp_in_sms",
-  "otp_in_mail",
 ];
 
 class UserService {

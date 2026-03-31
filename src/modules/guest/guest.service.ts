@@ -14,6 +14,7 @@ import { generateUniqueSlug } from "../../utils/slugify";
 import PermissionSettings from "../settings/permission_settings/permission_set.model";
 import eventBus from "../../events/eventBus";
 import { EVENTS } from "../../events/events.constants";
+import Tags from "../tags/tags.model";
 
 class GuestService {
   //--------------------------------
@@ -53,7 +54,6 @@ class GuestService {
             media_name: sanitizedMediaName,
             path: mediaPath,
             type: file.mimetype,
-            tag_id: data.tag_id ?? null,
             created_by: creator.id,
             updated_by: creator.id,
           },
@@ -93,22 +93,15 @@ class GuestService {
       let hostId: string | null = null;
 
       if (isHost) {
-        // Host creating → auto assign
         hostId = creator.id;
-      } else {
-        // Non-host creating → host_id must be provided
-        if (!data.host_id) {
-          throw new ApiError(400, "host_id is required");
-        }
-
-        // Validate host exists
+      } else if (data.host_id) {
         const hostUser = await User.findOne({
           where: { id: data.host_id },
           include: [
             {
               model: Role,
               as: "roles",
-              where: { role_name: "Host" }, // 🔥 important
+              where: { role_name: "Host" },
               through: { attributes: [] },
             },
           ],
@@ -154,6 +147,7 @@ class GuestService {
           profile_image: mediaId,
           host_id: hostId,
           status: data.status ?? "not_started",
+          tag_ids: data.tag_ids ?? [],
           // approved: autoApprove,
           // approved_by: autoApprove ? creator.id : null,
           referred_by: data.referred_by ?? creator.id,
@@ -191,8 +185,8 @@ class GuestService {
   //--------------------------------
   // GET All Guests
   //--------------------------------
-  static async getAllGuests(): Promise<Guest[]> {
-    return await Guest.findAll({
+  static async getAllGuests(): Promise<any[]> {
+    const guests = await Guest.findAll({
       order: [["created_at", "DESC"]],
       include: [
         {
@@ -217,6 +211,25 @@ class GuestService {
         },
       ],
     });
+
+    // 🔥 manually attach tags
+    const guestsWithTags = await Promise.all(
+      guests.map(async (guest) => {
+        const tagIds = guest.tag_ids || [];
+
+        const tags = await Tags.findAll({
+          where: { id: tagIds },
+          attributes: ["id", "tag_name", "slug"],
+        });
+
+        return {
+          ...guest.toJSON(),
+          tags_data: tags,
+        };
+      }),
+    );
+
+    return guestsWithTags;
   }
 
   //--------------------------------
@@ -235,7 +248,7 @@ class GuestService {
   //--------------------------------
   // GET Guest by Slug
   //--------------------------------
-  static async getGuestBySlug(slug: string): Promise<Guest> {
+  static async getGuestBySlug(slug: string): Promise<any> {
     const guest = await Guest.findOne({
       where: { slug },
       include: [
@@ -254,32 +267,25 @@ class GuestService {
           as: "approver",
           attributes: ["id", "full_name"],
         },
-
         {
           model: User,
           as: "host",
           attributes: ["id", "full_name"],
         },
-        {
-          model: GuestNote,
-          as: "notes",
-          order: [["created_at", "DESC"]],
-          include: [
-            {
-              model: User,
-              as: "creator",
-              attributes: ["id", "full_name"],
-            },
-          ],
-        },
       ],
     });
 
-    if (!guest) {
-      throw new ApiError(404, "Guest not found");
-    }
+    if (!guest) throw new ApiError(404, "Guest not found");
 
-    return guest;
+    const tags = await Tags.findAll({
+      where: { id: guest.tag_ids || [] },
+      attributes: ["id", "tag_name", "slug"],
+    });
+
+    return {
+      ...guest.toJSON(),
+      tags_data: tags,
+    };
   }
 
   //--------------------------------
@@ -292,20 +298,20 @@ class GuestService {
       ],
     });
 
-    if (!guest) {
-      throw new ApiError(404, "Guest not found");
-    }
+    if (!guest) throw new ApiError(404, "Guest not found");
 
     if (guest.approved) {
       throw new ApiError(400, "Guest already approved");
     }
 
-    const isAdmin = approver.roles?.some(
-      (role: any) => role.role_name === "Admin",
-    );
+    const permission = await PermissionSettings.findOne({
+      where: { permission_type: "guest_approver" },
+    });
 
-    if (!isAdmin) {
-      throw new ApiError(403, "Only Admin can approve guest");
+    const allowedUserIds = permission?.user_ids ?? [];
+
+    if (!allowedUserIds.includes(approver.id)) {
+      throw new ApiError(403, "You are not allowed to approve guest");
     }
 
     await guest.update({
@@ -313,18 +319,6 @@ class GuestService {
       approved_by: approver.id,
       updated_by: approver.id,
     });
-
-    const host = (guest as any).host;
-
-    if (host?.email) {
-      eventBus.emit(EVENTS.GUEST_APPROVED, {
-        guestId: guest.id,
-        guestName: guest.full_name,
-        hostEmail: host.email,
-        hostName: host.full_name,
-        approverName: approver.full_name,
-      });
-    }
 
     return guest;
   }
@@ -339,16 +333,16 @@ class GuestService {
       ],
     });
 
-    if (!guest) {
-      throw new ApiError(404, "Guest not found");
-    }
+    if (!guest) throw new ApiError(404, "Guest not found");
 
-    const isAdmin = approver.roles?.some(
-      (role: any) => role.role_name === "Admin",
-    );
+    const permission = await PermissionSettings.findOne({
+      where: { permission_type: "guest_approver" },
+    });
 
-    if (!isAdmin) {
-      throw new ApiError(403, "Only Admin can reject guest");
+    const allowedUserIds = permission?.user_ids ?? [];
+
+    if (!allowedUserIds.includes(approver.id)) {
+      throw new ApiError(403, "You are not allowed to reject guest");
     }
 
     await guest.update({
@@ -357,18 +351,6 @@ class GuestService {
       approved_by: approver.id,
       updated_by: approver.id,
     });
-
-    const host = (guest as any).host;
-
-    if (host?.email) {
-      eventBus.emit(EVENTS.GUEST_REJECTED, {
-        guestId: guest.id,
-        guestName: guest.full_name,
-        hostEmail: host.email,
-        hostName: host.full_name,
-        approverName: approver.full_name,
-      });
-    }
 
     return guest;
   }
@@ -414,7 +396,6 @@ class GuestService {
             media_name: sanitizedMediaName,
             path: mediaPath,
             type: file.mimetype,
-            tag_id: data.tag_id ?? null,
             created_by: user.id,
             updated_by: user.id,
           },
@@ -470,6 +451,7 @@ class GuestService {
         {
           ...data,
           profile_image: mediaId,
+          tag_ids: data.tag_ids ?? guest.tag_ids,
           updated_by: user.id,
         },
         { transaction },

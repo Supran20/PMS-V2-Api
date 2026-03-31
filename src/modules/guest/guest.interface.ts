@@ -24,6 +24,8 @@ export interface GuestAttributes {
 
   referred_by?: string | null;
   profile_image?: string | null;
+  tags?: string[] | null;
+  tag_ids?: string[] | null;
 
   host_id?: string | null;
 

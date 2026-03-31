@@ -1,9 +1,10 @@
 import Tags from "./tags.model";
 import { ITag } from "./tags.interface";
+import { generateUniqueSlug } from "../../utils/slugify";
 
 type CreateTagDTO = {
   tag_name: string;
-  slug: string;
+  slug?: string; // ✅ optional
 };
 
 type UpdateTagDTO = {
@@ -13,8 +14,14 @@ type UpdateTagDTO = {
 
 class TagService {
   async createTag(data: CreateTagDTO, userId: string) {
+    // generate slug if not provided
+    const slug = data.slug
+      ? await generateUniqueSlug(data.slug, Tags)
+      : await generateUniqueSlug(data.tag_name, Tags);
+
     return await Tags.create({
-      ...data,
+      tag_name: data.tag_name,
+      slug,
       created_by: userId,
     });
   }
@@ -29,18 +36,28 @@ class TagService {
     return await Tags.findByPk(id);
   }
 
-  async getTagBySlug(slug:string){
+  async getTagBySlug(slug: string) {
     return await Tags.findOne({
-      where:{slug},
-    })
+      where: { slug },
+    });
   }
 
   async updateTag(id: string, data: UpdateTagDTO, userId: string) {
     const tag = await Tags.findByPk(id);
     if (!tag) return null;
 
+    let slug = tag.slug;
+
+    // regenerate slug if changed
+    if (data.slug) {
+      slug = await generateUniqueSlug(data.slug, Tags);
+    } else if (data.tag_name) {
+      slug = await generateUniqueSlug(data.tag_name, Tags);
+    }
+
     await tag.update({
       ...data,
+      slug,
       updated_by: userId,
       updated_at: new Date(),
     });

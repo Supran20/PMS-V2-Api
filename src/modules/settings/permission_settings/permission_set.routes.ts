@@ -17,7 +17,7 @@ router.post(
 router.get(
   "/",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   PermissionSettingsController.getAll,
 );
 
