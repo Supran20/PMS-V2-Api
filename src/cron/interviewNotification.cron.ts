@@ -13,121 +13,137 @@ import {
 } from "../services/email.service";
 
 export default function interviewNotificationCron() {
-  cron.schedule("*/30 * * * *", async () => {
-    console.log("[Cron] Checking for upcoming interviews...");
+  cron.schedule(
+    "*/5 * * * *",
+    async () => {
+      console.log("[Cron] Checking for upcoming interviews...");
 
-    try {
-      const now = new Date();
-      const todayDate = now.toISOString().split("T")[0];
+      try {
+        const now = new Date();
+        const todayDate = now.toISOString().split("T")[0];
 
-      const interviews = await Interview.findAll({
-        where: {
-          interview_date: todayDate,
-          start_time: { [Op.not]: null },
-          end_time: { [Op.not]: null }, // ensure end_time exists
-          interview_status: "scheduled",
-        },
-        include: [
-          { model: Guest, as: "guest", attributes: ["full_name", "email"] },
-          { model: User, as: "host", attributes: ["full_name", "email"] },
-          { model: Studio, as: "studio", attributes: ["studio_name"] },
-        ],
-      });
-
-      const admins = await User.findAll({
-        include: [
-          {
-            model: Role,
-            as: "roles",
-            where: { role_name: "Admin" },
-            attributes: [],
+        const interviews = await Interview.findAll({
+          where: {
+            interview_date: todayDate,
+            start_time: { [Op.not]: null },
+            end_time: { [Op.not]: null }, // ensure end_time exists
+            interview_status: "scheduled",
           },
-        ],
-        attributes: ["email"],
-      });
+          include: [
+            { model: Guest, as: "guest", attributes: ["full_name", "email"] },
+            { model: User, as: "host", attributes: ["full_name", "email"] },
+            { model: Studio, as: "studio", attributes: ["studio_name"] },
+          ],
+        });
 
-      const adminEmails = admins.map((a) => a.email).filter(Boolean);
+        const admins = await User.findAll({
+          include: [
+            {
+              model: Role,
+              as: "roles",
+              where: { role_name: "Admin" },
+              attributes: [],
+            },
+          ],
+          attributes: ["email"],
+        });
 
-      for (const interview of interviews) {
-        const startParts = interview.start_time?.split(":");
-        const endParts = interview.end_time?.split(":");
-        if (!startParts || !endParts) continue;
+        const adminEmails = admins.map((a) => a.email).filter(Boolean);
 
-        const [year, month, day] = todayDate.split("-").map(Number);
+        for (const interview of interviews) {
+          const startParts = interview.start_time?.split(":");
+          const endParts = interview.end_time?.split(":");
+          if (!startParts || !endParts) continue;
 
-        const startDateTime = new Date(
-          Date.UTC(year, month - 1, day, +startParts[0], +startParts[1], 0),
-        );
+          const [year, month, day] = todayDate.split("-").map(Number);
 
-        const endDateTime = new Date(
-          Date.UTC(year, month - 1, day, +endParts[0], +endParts[1], 0),
-        );
-
-        const diffMinutes =
-          (startDateTime.getTime() - now.getTime()) / (1000 * 60);
-
-        // ✅ CORE CONDITIONS
-        const isBeforeStart = now < startDateTime;
-        const isBeforeEnd = now < endDateTime;
-        const isWithinNextHour = diffMinutes > 0 && diffMinutes <= 60;
-
-        if (isBeforeStart && isBeforeEnd && isWithinNextHour) {
-          const guestEmail = interview.guest?.email;
-          const hostEmail = interview.host?.email;
-
-          const diffHours = Math.floor(diffMinutes / 60);
-          const diffMins = Math.floor(diffMinutes % 60);
-
-          const timeRemaining = diffHours
-            ? `${diffHours}h ${diffMins}m`
-            : `${diffMins} minutes`;
-
-          const html = await generateInterviewEmailHtml(
-            `Upcoming Interview Reminder - In ${timeRemaining}`,
-            interview.host?.full_name ?? "Host",
-            interview.guest?.full_name ?? "Guest",
-            interview.interview_date ?? "",
-            interview.start_time ?? "",
-            interview.end_time ?? "",
-            interview.studio?.studio_name ?? "Studio",
+          const startDateTime = new Date(
+            year,
+            month - 1,
+            day,
+            +startParts[0],
+            +startParts[1],
+            0,
           );
 
-          const text = `Your interview with ${interview.guest?.full_name} is scheduled at ${interview.start_time} (starting in ${timeRemaining})`;
+          const endDateTime = new Date(
+            year,
+            month - 1,
+            day,
+            +endParts[0],
+            +endParts[1],
+            0,
+          );
 
-          const permission = await PermissionSettings.findOne({
-            where: { permission_type: "interview_cc" },
-          });
+          const diffMinutes =
+            (startDateTime.getTime() - now.getTime()) / (1000 * 60);
 
-          if (!permission || !permission.user_ids?.length) continue;
+          // ✅ CORE CONDITIONS
+          const isBeforeStart = now < startDateTime;
+          const isBeforeEnd = now < endDateTime;
+          const isWithinNextHour = diffMinutes > 0 && diffMinutes <= 60;
 
-          const ccUsers = await User.findAll({
-            where: { id: permission.user_ids },
-            attributes: ["email"],
-          });
+          if (isBeforeStart && isBeforeEnd && isWithinNextHour) {
+            const guestEmail = interview.guest?.email;
+            const hostEmail = interview.host?.email;
 
-          const ccEmails = ccUsers.map((u) => u.email).filter(Boolean);
+            const diffHours = Math.floor(diffMinutes / 60);
+            const diffMins = Math.floor(diffMinutes % 60);
 
-          if (!hostEmail) continue;
+            const timeRemaining = diffHours
+              ? `${diffHours}h ${diffMins}m`
+              : `${diffMins} minutes`;
 
-          try {
-            await sendEmail({
-              to: hostEmail,
-              subject: `Upcoming Interview Reminder - In ${timeRemaining}`,
-              text,
-              html,
-              cc: ccEmails,
+            const html = await generateInterviewEmailHtml(
+              `Upcoming Interview Reminder - In ${timeRemaining}`,
+              interview.host?.full_name ?? "Host",
+              interview.guest?.full_name ?? "Guest",
+              interview.interview_date ?? "",
+              interview.start_time ?? "",
+              interview.end_time ?? "",
+              interview.studio?.studio_name ?? "Studio",
+            );
+
+            const text = `Your interview with ${interview.guest?.full_name} is scheduled at ${interview.start_time} (starting in ${timeRemaining})`;
+
+            const permission = await PermissionSettings.findOne({
+              where: { permission_type: "interview_cc" },
             });
-          } catch (err) {
-            console.error(`[Cron] Email failed for ${hostEmail}`);
-          }
 
-          console.log(
-            `[Cron] Sent for interview ${interview.id} (starts in ${timeRemaining})`,
-          );
+            if (!permission || !permission.user_ids?.length) continue;
+
+            const ccUsers = await User.findAll({
+              where: { id: permission.user_ids },
+              attributes: ["email"],
+            });
+
+            const ccEmails = ccUsers.map((u) => u.email).filter(Boolean);
+
+            if (!hostEmail) continue;
+
+            try {
+              await sendEmail({
+                to: hostEmail,
+                subject: `Upcoming Interview Reminder - In ${timeRemaining}`,
+                text,
+                html,
+                cc: ccEmails,
+              });
+            } catch (err) {
+              console.error(`[Cron] Email failed for ${hostEmail}`);
+            }
+
+            console.log(
+              `[Cron] Sent for interview ${interview.id} (starts in ${timeRemaining})`,
+            );
+          }
         }
+      } catch (err) {
+        console.error("[Cron] Failed:", err);
       }
-    } catch (err) {
-      console.error("[Cron] Failed:", err);
-    }
-  });
+    },
+    {
+      timezone: "Asia/Kathmandu",
+    },
+  );
 }
