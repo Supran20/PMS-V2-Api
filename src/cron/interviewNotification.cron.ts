@@ -1,5 +1,7 @@
 import cron from "node-cron";
 import { Op } from "sequelize";
+import { DateTime } from "luxon";
+
 import Interview from "../modules/interview/interview.model";
 import Guest from "../modules/guest/guest.model";
 import User from "../modules/users/user.model";
@@ -12,21 +14,25 @@ import {
   generateInterviewEmailHtml,
 } from "../services/email.service";
 
+const ZONE = "Asia/Kathmandu";
+
 export default function interviewNotificationCron() {
   cron.schedule(
     "*/30 * * * *",
     async () => {
-      console.log("[Cron] Checking for upcoming interviews...");
+      const now = DateTime.now().setZone(ZONE);
+
+      console.log("[Cron] Checking...");
+      console.log("NOW:", now.toISO(), "|", now.toFormat("yyyy-MM-dd HH:mm"));
 
       try {
-        const now = new Date();
-        const todayDate = now.toISOString().split("T")[0];
+        const todayDate = now.toISODate(); // ✅ correct
 
         const interviews = await Interview.findAll({
           where: {
             interview_date: todayDate,
             start_time: { [Op.not]: null },
-            end_time: { [Op.not]: null }, // ensure end_time exists
+            end_time: { [Op.not]: null },
             interview_status: "scheduled",
           },
           include: [
@@ -36,56 +42,36 @@ export default function interviewNotificationCron() {
           ],
         });
 
-        const admins = await User.findAll({
-          include: [
-            {
-              model: Role,
-              as: "roles",
-              where: { role_name: "Admin" },
-              attributes: [],
-            },
-          ],
-          attributes: ["email"],
-        });
-
-        const adminEmails = admins.map((a) => a.email).filter(Boolean);
-
         for (const interview of interviews) {
-          const startParts = interview.start_time?.split(":");
-          const endParts = interview.end_time?.split(":");
-          if (!startParts || !endParts) continue;
+          if (!interview.start_time || !interview.end_time) continue;
 
-          const [year, month, day] = todayDate.split("-").map(Number);
-
-          const startDateTime = new Date(
-            year,
-            month - 1,
-            day,
-            +startParts[0],
-            +startParts[1],
-            0,
+          // ✅ build datetime in Nepal timezone
+          const startDateTime = DateTime.fromISO(
+            `${todayDate}T${interview.start_time}`,
+            { zone: ZONE },
           );
 
-          const endDateTime = new Date(
-            year,
-            month - 1,
-            day,
-            +endParts[0],
-            +endParts[1],
-            0,
+          const endDateTime = DateTime.fromISO(
+            `${todayDate}T${interview.end_time}`,
+            { zone: ZONE },
           );
 
-          const diffMinutes =
-            (startDateTime.getTime() - now.getTime()) / (1000 * 60);
+          const diffMinutes = startDateTime.diff(now, "minutes").minutes;
 
-          // ✅ CORE CONDITIONS
+          // ✅ DEBUG (VERY IMPORTANT)
+          console.log("----");
+          console.log("Interview ID:", interview.id);
+          console.log("Start:", startDateTime.toFormat("HH:mm"));
+          console.log("Now:", now.toFormat("HH:mm"));
+          console.log("Diff (min):", diffMinutes);
+
           const isBeforeStart = now < startDateTime;
           const isBeforeEnd = now < endDateTime;
           const isWithinNextHour = diffMinutes > 0 && diffMinutes <= 60;
 
           if (isBeforeStart && isBeforeEnd && isWithinNextHour) {
-            const guestEmail = interview.guest?.email;
             const hostEmail = interview.host?.email;
+            if (!hostEmail) continue;
 
             const diffHours = Math.floor(diffMinutes / 60);
             const diffMins = Math.floor(diffMinutes % 60);
@@ -104,13 +90,13 @@ export default function interviewNotificationCron() {
               interview.studio?.studio_name ?? "Studio",
             );
 
-            const text = `Your interview with ${interview.guest?.full_name} is scheduled at ${interview.start_time} (starting in ${timeRemaining})`;
+            const text = `Interview at ${interview.start_time} (in ${timeRemaining})`;
 
             const permission = await PermissionSettings.findOne({
               where: { permission_type: "interview_cc" },
             });
 
-            if (!permission || !permission.user_ids?.length) continue;
+            if (!permission?.user_ids?.length) continue;
 
             const ccUsers = await User.findAll({
               where: { id: permission.user_ids },
@@ -119,23 +105,15 @@ export default function interviewNotificationCron() {
 
             const ccEmails = ccUsers.map((u) => u.email).filter(Boolean);
 
-            if (!hostEmail) continue;
+            await sendEmail({
+              to: hostEmail,
+              subject: `Upcoming Interview Reminder - In ${timeRemaining}`,
+              text,
+              html,
+              cc: ccEmails,
+            });
 
-            try {
-              await sendEmail({
-                to: hostEmail,
-                subject: `Upcoming Interview Reminder - In ${timeRemaining}`,
-                text,
-                html,
-                cc: ccEmails,
-              });
-            } catch (err) {
-              console.error(`[Cron] Email failed for ${hostEmail}`);
-            }
-
-            console.log(
-              `[Cron] Sent for interview ${interview.id} (starts in ${timeRemaining})`,
-            );
+            console.log(`[Cron] ✅ Sent for ${interview.id}`);
           }
         }
       } catch (err) {
@@ -143,7 +121,7 @@ export default function interviewNotificationCron() {
       }
     },
     {
-      timezone: "Asia/Kathmandu",
+      timezone: ZONE,
     },
   );
 }
