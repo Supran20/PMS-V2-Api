@@ -14,7 +14,7 @@ import {
 
 export default function interviewNotificationCron() {
   cron.schedule(
-    "*/5 * * * *",
+    "*/30 * * * *",
     async () => {
       console.log("[Cron] Checking for upcoming interviews...");
 
