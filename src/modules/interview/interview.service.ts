@@ -494,6 +494,51 @@ class InterviewService {
     if (!interview) throw new ApiError(404, "Interview not found");
     await interview.destroy();
   }
+
+  //--------------------------------
+  // RESHUFFLE EPISODES (fill gaps)
+  //--------------------------------
+  static async reshuffleEpisodes(updaterId: string): Promise<void> {
+    const transaction = await sequelize.transaction();
+
+    try {
+      const interviews = await Interview.findAll({
+        order: [["episode", "ASC"]],
+        transaction,
+        lock: transaction.LOCK.UPDATE, // prevent race condition
+      });
+
+      const published = interviews.filter((i) => i.status === "published");
+      const nonPublished = interviews.filter((i) => i.status !== "published");
+
+      const reservedEpisodes = new Set(published.map((i) => i.episode));
+
+      let currentEpisode = 1;
+
+      for (const interview of nonPublished) {
+        while (reservedEpisodes.has(currentEpisode)) {
+          currentEpisode++;
+        }
+
+        if (interview.episode !== currentEpisode) {
+          await interview.update(
+            {
+              episode: currentEpisode,
+              updated_by: updaterId,
+            },
+            { transaction },
+          );
+        }
+
+        currentEpisode++;
+      }
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
 }
 
 export default InterviewService;

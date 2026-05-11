@@ -150,4 +150,23 @@ export class InterviewController {
       res.status(404).json({ success: false, message: error.message });
     }
   }
+
+  //--------------------------------
+  // RESHUFFLE
+  //--------------------------------
+  static async reshuffle(req: AuthRequest, res: Response) {
+    try {
+      await InterviewService.reshuffleEpisodes(req.user.id);
+
+      res.status(200).json({
+        success: true,
+        message: "Episodes reshuffled successfully",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }
