@@ -37,4 +37,6 @@ router.put(
 
 router.delete("/:id", authenticate, InterviewController.delete);
 
+router.patch("/reshuffle", authenticate, InterviewController.reshuffle);
+
 export default router;
