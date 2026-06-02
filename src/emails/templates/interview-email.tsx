@@ -23,6 +23,16 @@ interface InterviewEmailProps {
   studio: string;
 }
 
+const formatTime = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+
+  return new Date(0, 0, 0, hours, minutes).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
 export default function InterviewEmail({
   title,
   hostName,
@@ -72,7 +82,7 @@ export default function InterviewEmail({
               </Text>
               <Text className="text-base mb-1">Date: {date}</Text>
               <Text className="text-base mb-1">
-                Time: {startTime} - {endTime}
+                Time: {formatTime(startTime)} - {formatTime(endTime)}
               </Text>
               <Text className="text-base mb-1">Studio: {studio}</Text>
             </Section>
