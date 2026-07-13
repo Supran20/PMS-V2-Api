@@ -19,6 +19,9 @@ export interface UserAttributes {
   otp_in_sms?: boolean;
   otp_in_mail?: boolean;
 
+  visibility_start_date?: Date | null;
+  visibility_end_date?: Date | null;
+
   created_at?: Date;
   updated_at?: Date;
 }

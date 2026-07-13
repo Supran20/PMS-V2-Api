@@ -28,6 +28,10 @@ export class User
   declare enable_otp_login: boolean;
   declare otp_in_sms: boolean;
   declare otp_in_mail: boolean;
+
+  declare visibility_start_date: Date | null;
+  declare visibility_end_date: Date | null;
+
   declare created_at: Date;
   declare updated_at: Date;
 
@@ -107,6 +111,14 @@ User.init(
     otp_in_mail: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
+    },
+    visibility_start_date: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    visibility_end_date: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,

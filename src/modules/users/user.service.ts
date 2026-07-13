@@ -15,6 +15,9 @@ const USER_EXCLUDE_FIELDS = [
   "remember_token_expires_at",
 ];
 
+// Roles that are subject to the created_at-based visibility restriction
+const RESTRICTED_ROLES = ["Staff", "Host"];
+
 class UserService {
   //--------------------------------
   // CREATE USER
@@ -38,10 +41,24 @@ class UserService {
 
       const hashedPassword = await bcrypt.hash(data.password, 10);
 
+      // Visibility window only applies to Staff/Host.
+      // Admin is always unrestricted, so we force these to null regardless
+      // of what was passed in (validation should already block this, but
+      // the service layer shouldn't trust that alone).
+      const isRestrictedRole = RESTRICTED_ROLES.includes(data.role_name);
+      const visibility_start_date = isRestrictedRole
+        ? data.visibility_start_date ?? null
+        : null;
+      const visibility_end_date = isRestrictedRole
+        ? data.visibility_end_date ?? null
+        : null;
+
       const user = await User.create(
         {
           ...data,
           password: hashedPassword,
+          visibility_start_date,
+          visibility_end_date,
         },
         { transaction },
       );
@@ -171,7 +188,7 @@ class UserService {
           as: "roles",
           where: { role_name: "Host" },
           through: { attributes: [] },
-          required: true, // ensures INNER JOIN (only users with Host role)
+          required: true,
         },
         {
           model: Media,
@@ -197,7 +214,7 @@ class UserService {
           as: "roles",
           where: { role_name: "Admin" },
           through: { attributes: [] },
-          required: true, // ensures INNER JOIN (only users with Host role)
+          required: true,
         },
         {
           model: Media,
@@ -215,13 +232,22 @@ class UserService {
   static async updateUser(
     id: string,
     data: any,
-    user: any,
+    requester: any, // renamed from `user` — this was previously shadowed and unused
     file?: Express.Multer.File,
   ): Promise<User> {
     const transaction = await sequelize.transaction();
 
     try {
-      const user = await User.findByPk(id, { transaction });
+      const user = await User.findByPk(id, {
+        include: [
+          {
+            model: Role,
+            as: "roles",
+            through: { attributes: [] },
+          },
+        ],
+        transaction,
+      });
 
       if (!user) {
         throw new ApiError(404, "User not found");
@@ -231,8 +257,47 @@ class UserService {
         data.password = await bcrypt.hash(data.password, 10);
       }
 
-      // Extract role_name separately
-      const { role_name, ...userData } = data;
+      // Extract role_name and visibility fields separately — they need
+      // special handling before being merged back into the update payload.
+      const { role_name, visibility_start_date, visibility_end_date, ...userData } =
+        data;
+
+      // Only Admin may grant/revoke a visibility window on another user.
+      // Adjust `requester.role_name` below to however role is actually
+      // exposed on req.user in your auth middleware.
+      const isTouchingVisibility =
+        Object.prototype.hasOwnProperty.call(data, "visibility_start_date") ||
+        Object.prototype.hasOwnProperty.call(data, "visibility_end_date");
+
+      if (isTouchingVisibility && requester?.role_name !== "Admin") {
+        throw new ApiError(
+          403,
+          "Only Admin can modify a user's visibility window",
+        );
+      }
+
+      // Resolve the role this user will have AFTER this update
+      const effectiveRoleName =
+        role_name ?? user.roles?.[0]?.role_name ?? null;
+      const isRestrictedRole = RESTRICTED_ROLES.includes(effectiveRoleName);
+
+      if (!isRestrictedRole) {
+        // Admin (or a role change into Admin) is always unrestricted —
+        // strip any stale visibility window.
+        userData.visibility_start_date = null;
+        userData.visibility_end_date = null;
+      } else {
+        // Staff/Host: only touch these fields if explicitly present in the
+        // payload, so a partial update doesn't accidentally wipe an
+        // existing window. Explicit `null` is allowed through — that's
+        // how Admin revokes a previously granted window.
+        if (Object.prototype.hasOwnProperty.call(data, "visibility_start_date")) {
+          userData.visibility_start_date = visibility_start_date;
+        }
+        if (Object.prototype.hasOwnProperty.call(data, "visibility_end_date")) {
+          userData.visibility_end_date = visibility_end_date;
+        }
+      }
 
       // Update normal user fields
       await user.update(userData, { transaction });
