@@ -26,12 +26,18 @@ import {
 // (and interview.service.ts, if you copy this) build it the same way.
 function toVisibilitySubject(requester: any): VisibilitySubject {
   return {
+    id: requester?.id,
     role_name: requester?.roles?.[0]?.role_name ?? null,
     created_at: requester?.created_at,
     visibility_start_date: requester?.visibility_start_date ?? null,
     visibility_end_date: requester?.visibility_end_date ?? null,
   };
 }
+
+// Guests directly assigned to a Host (Guest.host_id) must always be
+// visible to that Host, regardless of created_at timing — see
+// visibility.util.ts's assignmentField option.
+const GUEST_ASSIGNMENT_OPTIONS = { assignmentField: "host_id" };
 
 // Shared helper: fetch a single guest by an arbitrary where-clause,
 // honoring the requester's visibility window, or throw 404.
@@ -41,8 +47,18 @@ async function findVisibleGuestOrThrow(
   transaction?: Transaction,
   include?: any[],
 ): Promise<Guest> {
-  const visibilityFilter = getVisibilityFilter(toVisibilitySubject(requester));
-  const where = mergeVisibilityFilter(baseWhere, visibilityFilter);
+  const isHost = requester?.roles?.[0]?.role_name === "Host";
+  let where = baseWhere;
+
+  if (isHost) {
+    where = { ...baseWhere, host_id: requester.id };
+  } else {
+    const visibilityFilter = getVisibilityFilter(
+      toVisibilitySubject(requester),
+      GUEST_ASSIGNMENT_OPTIONS,
+    );
+    where = mergeVisibilityFilter(baseWhere, visibilityFilter);
+  }
 
   const guest = await Guest.findOne({ where, transaction, include });
   if (!guest) throw new ApiError(404, "Guest not found");
@@ -103,18 +119,6 @@ class GuestService {
           throw new ApiError(400, "Invalid social_media JSON format");
         }
       }
-
-      // --------------------------------
-      // 3️⃣ Auto-approval logic
-      // --------------------------------
-      // const userPermissions = new Set(
-      //   creator.roles?.flatMap(
-      //     (role: any) =>
-      //       role.permissions?.map((p: any) => p.permission_type) ?? [],
-      //   ),
-      // );
-
-      // const autoApprove = userPermissions.has("guest.auto_approve");
 
       // --------------------------------
       // 4️⃣ Detect Host Role
@@ -181,8 +185,6 @@ class GuestService {
           host_id: hostId,
           status: data.status ?? "not_started",
           tag_ids: data.tag_ids ?? [],
-          // approved: autoApprove,
-          // approved_by: autoApprove ? creator.id : null,
           referred_by: data.referred_by ?? creator.id,
           created_by: creator.id,
           updated_by: creator.id,
@@ -219,10 +221,18 @@ class GuestService {
   // GET All Guests
   //--------------------------------
   static async getAllGuests(requester: any): Promise<any[]> {
-    const visibilityFilter = getVisibilityFilter(
-      toVisibilitySubject(requester),
-    );
-    const where = mergeVisibilityFilter({}, visibilityFilter);
+    const isHost = requester?.roles?.[0]?.role_name === "Host";
+    let where: any = {};
+
+    if (isHost) {
+      where = { host_id: requester.id };
+    } else {
+      const visibilityFilter = getVisibilityFilter(
+        toVisibilitySubject(requester),
+        GUEST_ASSIGNMENT_OPTIONS,
+      );
+      where = mergeVisibilityFilter({}, visibilityFilter);
+    }
 
     const guests = await Guest.findAll({
       where,
@@ -275,10 +285,18 @@ class GuestService {
   // GET Guest by ID
   //--------------------------------
   static async getGuestById(id: string, requester: any): Promise<Guest> {
-    const visibilityFilter = getVisibilityFilter(
-      toVisibilitySubject(requester),
-    );
-    const where = mergeVisibilityFilter({ id }, visibilityFilter);
+    const isHost = requester?.roles?.[0]?.role_name === "Host";
+    let where: any = { id };
+
+    if (isHost) {
+      where = { id, host_id: requester.id };
+    } else {
+      const visibilityFilter = getVisibilityFilter(
+        toVisibilitySubject(requester),
+        GUEST_ASSIGNMENT_OPTIONS,
+      );
+      where = mergeVisibilityFilter({ id }, visibilityFilter);
+    }
 
     const guest = await Guest.findOne({ where });
 
@@ -295,10 +313,18 @@ class GuestService {
   // GET Guest by Slug
   //--------------------------------
   static async getGuestBySlug(slug: string, requester: any): Promise<any> {
-    const visibilityFilter = getVisibilityFilter(
-      toVisibilitySubject(requester),
-    );
-    const where = mergeVisibilityFilter({ slug }, visibilityFilter);
+    const isHost = requester?.roles?.[0]?.role_name === "Host";
+    let where: any = { slug };
+
+    if (isHost) {
+      where = { slug, host_id: requester.id };
+    } else {
+      const visibilityFilter = getVisibilityFilter(
+        toVisibilitySubject(requester),
+        GUEST_ASSIGNMENT_OPTIONS,
+      );
+      where = mergeVisibilityFilter({ slug }, visibilityFilter);
+    }
 
     const guest = await Guest.findOne({
       where,

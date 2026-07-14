@@ -25,6 +25,7 @@ import {
 // as a shared export if you want a single source of truth.
 function toVisibilitySubject(requester: any): VisibilitySubject {
   return {
+    id: requester?.id,
     role_name: requester?.roles?.[0]?.role_name ?? null,
     created_at: requester?.created_at,
     visibility_start_date: requester?.visibility_start_date ?? null,
@@ -41,8 +42,15 @@ async function findVisibleInterviewOrThrow(
   transaction: Transaction,
   lock?: any,
 ): Promise<Interview> {
-  const visibilityFilter = getVisibilityFilter(toVisibilitySubject(requester));
-  const where = mergeVisibilityFilter({ id }, visibilityFilter);
+  const isHost = requester?.roles?.[0]?.role_name === "Host";
+  let where: any = { id };
+
+  if (isHost) {
+    where.host_id = requester.id;
+  } else {
+    const visibilityFilter = getVisibilityFilter(toVisibilitySubject(requester));
+    where = mergeVisibilityFilter({ id }, visibilityFilter);
+  }
 
   const interview = await Interview.findOne({ where, transaction, lock });
   if (!interview) throw new ApiError(404, "Interview not found");
@@ -339,10 +347,17 @@ class InterviewService {
   // GET ALL
   //--------------------------------
   static async getAll(requester: any): Promise<Interview[]> {
-    const visibilityFilter = getVisibilityFilter(
-      toVisibilitySubject(requester),
-    );
-    const where = mergeVisibilityFilter({}, visibilityFilter);
+    const isHost = requester?.roles?.[0]?.role_name === "Host";
+    let where: any = {};
+
+    if (isHost) {
+      where.host_id = requester.id;
+    } else {
+      const visibilityFilter = getVisibilityFilter(
+        toVisibilitySubject(requester),
+      );
+      where = mergeVisibilityFilter({}, visibilityFilter);
+    }
 
     return await Interview.findAll({
       where,
@@ -387,10 +402,17 @@ class InterviewService {
   // GET BY ID
   //--------------------------------
   static async getById(id: string, requester: any): Promise<Interview> {
-    const visibilityFilter = getVisibilityFilter(
-      toVisibilitySubject(requester),
-    );
-    const where = mergeVisibilityFilter({ id }, visibilityFilter);
+    const isHost = requester?.roles?.[0]?.role_name === "Host";
+    let where: any = { id };
+
+    if (isHost) {
+      where.host_id = requester.id;
+    } else {
+      const visibilityFilter = getVisibilityFilter(
+        toVisibilitySubject(requester),
+      );
+      where = mergeVisibilityFilter({ id }, visibilityFilter);
+    }
 
     const interview = await Interview.findOne({ where });
     if (!interview) throw new ApiError(404, "Interview not found");
@@ -432,24 +454,32 @@ class InterviewService {
     const transaction = await sequelize.transaction();
 
     try {
-      const visibilityFilter = getVisibilityFilter(
-        toVisibilitySubject(requester),
-      );
+      const isHost = requester?.roles?.[0]?.role_name === "Host";
+      let where: any = { id: { [Op.in]: orderedIds } };
 
-      // Verify every targeted id is actually visible to this requester
-      // BEFORE mutating anything. A silent partial-update (some ids
-      // update, hidden ones don't) would be a confusing failure mode —
-      // better to reject the whole batch with a clear 404.
-      if (visibilityFilter) {
-        const where = mergeVisibilityFilter(
-          { id: { [Op.in]: orderedIds } },
-          visibilityFilter,
-        );
-
+      if (isHost) {
+        where.host_id = requester.id;
         const visibleCount = await Interview.count({ where, transaction });
 
         if (visibleCount !== orderedIds.length) {
           throw new ApiError(404, "One or more interviews not found");
+        }
+      } else {
+        const visibilityFilter = getVisibilityFilter(
+          toVisibilitySubject(requester),
+        );
+
+        if (visibilityFilter) {
+          where = mergeVisibilityFilter(
+            where,
+            visibilityFilter,
+          );
+
+          const visibleCount = await Interview.count({ where, transaction });
+
+          if (visibleCount !== orderedIds.length) {
+            throw new ApiError(404, "One or more interviews not found");
+          }
         }
       }
 

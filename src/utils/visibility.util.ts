@@ -9,6 +9,7 @@ const RESTRICTED_ROLES = ["Staff", "Host"];
  * entire Sequelize instance if they don't want to.
  */
 export interface VisibilitySubject {
+  id: string;
   role_name: string | null | undefined;
   created_at: Date;
   visibility_start_date?: Date | null;
@@ -16,18 +17,35 @@ export interface VisibilitySubject {
 }
 
 /**
- * Builds the `created_at` visibility filter for a given requesting user.
+ * Optional extra rule: in addition to the normal time-based visibility,
+ * also treat rows as visible if they're directly assigned to this
+ * subject via the given field (e.g. "host_id" on Guest/Interview).
  *
- * - Admin                -> returns null (no filter, sees everything)
+ * Only applies to Host — Staff has no assignment concept today. Admin
+ * remains fully unrestricted regardless of this option.
+ */
+export interface VisibilityFilterOptions {
+  assignmentField?: string;
+}
+
+/**
+ * Builds the `created_at` visibility filter for a given requesting user,
+ * optionally OR'd with a direct-assignment override.
+ *
+ * - Admin                 -> returns null (no filter, sees everything)
  * - Staff/Host, no window -> only rows with created_at >= their own created_at
- * - Staff/Host, window   -> rows with created_at >= their own created_at
- *                           OR rows created_at BETWEEN their granted window
+ * - Staff/Host, window    -> rows with created_at >= their own created_at
+ *                            OR rows created_at BETWEEN their granted window
+ * - Host, with assignmentField -> the above OR rows where
+ *                            [assignmentField] === subject.id, regardless
+ *                            of created_at timing
  *
  * Returns `null` when no filter should be applied at all (Admin), so
  * callers can just skip merging when they get null back.
  */
 export function getVisibilityFilter(
   subject: VisibilitySubject,
+  options?: VisibilityFilterOptions,
 ): WhereOptions | null {
   if (!subject || !RESTRICTED_ROLES.includes(subject.role_name ?? "")) {
     return null;
@@ -46,6 +64,13 @@ export function getVisibilityFilter(
         ],
       },
     });
+  }
+
+  // Direct-assignment override — Host only. Assigned rows are visible
+  // regardless of created_at timing, since assignment is an explicit
+  // grant that should always win over the time-based default.
+  if (options?.assignmentField && subject.role_name === "Host") {
+    conditions.push({ [options.assignmentField]: subject.id });
   }
 
   return conditions.length === 1 ? conditions[0] : { [Op.or]: conditions };
