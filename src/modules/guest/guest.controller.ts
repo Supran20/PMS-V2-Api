@@ -29,7 +29,7 @@ export class GuestController {
 
   static async getAll(req: AuthRequest, res: Response) {
     try {
-      const guests = await GuestService.getAllGuests();
+      const guests = await GuestService.getAllGuests(req.user);
 
       res.status(200).json({
         success: true,
@@ -42,7 +42,10 @@ export class GuestController {
 
   static async getById(req: AuthRequest, res: Response) {
     try {
-      const guest = await GuestService.getGuestById(String(req.params.id));
+      const guest = await GuestService.getGuestById(
+        String(req.params.id),
+        req.user,
+      );
 
       res.status(200).json({
         success: true,
@@ -95,7 +98,10 @@ export class GuestController {
 
   static async getBySlug(req: AuthRequest, res: Response) {
     try {
-      const guest = await GuestService.getGuestBySlug(String(req.params.slug));
+      const guest = await GuestService.getGuestBySlug(
+        String(req.params.slug),
+        req.user,
+      );
 
       res.status(200).json({
         success: true,
@@ -126,10 +132,9 @@ export class GuestController {
       res.status(400).json({ success: false, message: error.message });
     }
   }
-
   static async delete(req: AuthRequest, res: Response) {
     try {
-      await GuestService.deleteGuest(String(req.params.id));
+      await GuestService.deleteGuest(String(req.params.id), req.user);
 
       res.status(200).json({
         success: true,

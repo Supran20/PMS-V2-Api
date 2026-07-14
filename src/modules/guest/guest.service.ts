@@ -15,6 +15,39 @@ import PermissionSettings from "../settings/permission_settings/permission_set.m
 import eventBus from "../../events/eventBus";
 import { EVENTS } from "../../events/events.constants";
 import Tags from "../tags/tags.model";
+import {
+  getVisibilityFilter,
+  mergeVisibilityFilter,
+  VisibilitySubject,
+} from "../../utils/visibility.util";
+
+// Builds the VisibilitySubject shape from a req.user instance.
+// Centralized here so both getAllGuests/getGuestById/getGuestBySlug
+// (and interview.service.ts, if you copy this) build it the same way.
+function toVisibilitySubject(requester: any): VisibilitySubject {
+  return {
+    role_name: requester?.roles?.[0]?.role_name ?? null,
+    created_at: requester?.created_at,
+    visibility_start_date: requester?.visibility_start_date ?? null,
+    visibility_end_date: requester?.visibility_end_date ?? null,
+  };
+}
+
+// Shared helper: fetch a single guest by an arbitrary where-clause,
+// honoring the requester's visibility window, or throw 404.
+async function findVisibleGuestOrThrow(
+  baseWhere: Record<string, any>,
+  requester: any,
+  transaction?: Transaction,
+  include?: any[],
+): Promise<Guest> {
+  const visibilityFilter = getVisibilityFilter(toVisibilitySubject(requester));
+  const where = mergeVisibilityFilter(baseWhere, visibilityFilter);
+
+  const guest = await Guest.findOne({ where, transaction, include });
+  if (!guest) throw new ApiError(404, "Guest not found");
+  return guest;
+}
 
 class GuestService {
   //--------------------------------
@@ -185,8 +218,14 @@ class GuestService {
   //--------------------------------
   // GET All Guests
   //--------------------------------
-  static async getAllGuests(): Promise<any[]> {
+  static async getAllGuests(requester: any): Promise<any[]> {
+    const visibilityFilter = getVisibilityFilter(
+      toVisibilitySubject(requester),
+    );
+    const where = mergeVisibilityFilter({}, visibilityFilter);
+
     const guests = await Guest.findAll({
+      where,
       order: [["created_at", "DESC"]],
       include: [
         {
@@ -235,10 +274,17 @@ class GuestService {
   //--------------------------------
   // GET Guest by ID
   //--------------------------------
-  static async getGuestById(id: string): Promise<Guest> {
-    const guest = await Guest.findByPk(id);
+  static async getGuestById(id: string, requester: any): Promise<Guest> {
+    const visibilityFilter = getVisibilityFilter(
+      toVisibilitySubject(requester),
+    );
+    const where = mergeVisibilityFilter({ id }, visibilityFilter);
+
+    const guest = await Guest.findOne({ where });
 
     if (!guest) {
+      // Same 404 whether it doesn't exist or is just outside the
+      // requester's visibility window — don't leak existence.
       throw new ApiError(404, "Guest not found");
     }
 
@@ -248,9 +294,14 @@ class GuestService {
   //--------------------------------
   // GET Guest by Slug
   //--------------------------------
-  static async getGuestBySlug(slug: string): Promise<any> {
+  static async getGuestBySlug(slug: string, requester: any): Promise<any> {
+    const visibilityFilter = getVisibilityFilter(
+      toVisibilitySubject(requester),
+    );
+    const where = mergeVisibilityFilter({ slug }, visibilityFilter);
+
     const guest = await Guest.findOne({
-      where: { slug },
+      where,
       include: [
         {
           model: Media,
@@ -292,13 +343,9 @@ class GuestService {
   // APPROVE Guest
   //--------------------------------
   static async approveGuest(id: string, approver: any): Promise<Guest> {
-    const guest = await Guest.findByPk(id, {
-      include: [
-        { model: User, as: "host", attributes: ["full_name", "email"] },
-      ],
-    });
-
-    if (!guest) throw new ApiError(404, "Guest not found");
+    const guest = await findVisibleGuestOrThrow({ id }, approver, undefined, [
+      { model: User, as: "host", attributes: ["full_name", "email"] },
+    ]);
 
     if (guest.approved) {
       throw new ApiError(400, "Guest already approved");
@@ -327,13 +374,9 @@ class GuestService {
   // Reject Guest
   //--------------------------------
   static async rejectGuest(id: string, approver: any): Promise<Guest> {
-    const guest = await Guest.findByPk(id, {
-      include: [
-        { model: User, as: "host", attributes: ["full_name", "email"] },
-      ],
-    });
-
-    if (!guest) throw new ApiError(404, "Guest not found");
+    const guest = await findVisibleGuestOrThrow({ id }, approver, undefined, [
+      { model: User, as: "host", attributes: ["full_name", "email"] },
+    ]);
 
     const permission = await PermissionSettings.findOne({
       where: { permission_type: "guest_approver" },
@@ -367,14 +410,7 @@ class GuestService {
     const transaction = await sequelize.transaction();
 
     try {
-      const guest = await Guest.findOne({
-        where: { slug },
-        transaction,
-      });
-
-      if (!guest) {
-        throw new ApiError(404, "Guest not found");
-      }
+      const guest = await findVisibleGuestOrThrow({ slug }, user, transaction);
 
       let mediaId = guest.profile_image;
 
@@ -416,13 +452,10 @@ class GuestService {
         );
       }
 
-      // Prevent manual override
-
       if ("approved" in data) {
         delete data.approved;
       }
 
-      // Validate host_id if provided
       if (data.host_id) {
         const host = await User.findByPk(data.host_id, { transaction });
 
@@ -476,13 +509,8 @@ class GuestService {
   //--------------------------------
   // DELETE Guest
   //--------------------------------
-  static async deleteGuest(id: string): Promise<void> {
-    const guest = await Guest.findByPk(id);
-
-    if (!guest) {
-      throw new ApiError(404, "Guest not found");
-    }
-
+  static async deleteGuest(id: string, requester: any): Promise<void> {
+    const guest = await findVisibleGuestOrThrow({ id }, requester);
     await guest.destroy();
   }
 }
