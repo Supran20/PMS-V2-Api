@@ -269,7 +269,9 @@ class UserService {
         Object.prototype.hasOwnProperty.call(data, "visibility_start_date") ||
         Object.prototype.hasOwnProperty.call(data, "visibility_end_date");
 
-      if (isTouchingVisibility && requester?.role_name !== "Admin") {
+      const requesterRoleName = requester?.roles?.[0]?.role_name;
+
+      if (isTouchingVisibility && requesterRoleName !== "Admin") {
         throw new ApiError(
           403,
           "Only Admin can modify a user's visibility window",
