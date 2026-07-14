@@ -1,6 +1,7 @@
 import { sequelize } from "../../config/db";
-import { Transaction } from "sequelize";
+import { Transaction, Op } from "sequelize";
 import Guest from "./guest.model";
+import Interview from "../interview/interview.model";
 import User from "../users/user.model";
 import Role from "../roles/role.model";
 import { sendEmail } from "../../services/email.service";
@@ -39,6 +40,23 @@ function toVisibilitySubject(requester: any): VisibilitySubject {
 // visibility.util.ts's assignmentField option.
 const GUEST_ASSIGNMENT_OPTIONS = { assignmentField: "host_id" };
 
+async function getHostGuestWhereClause(baseWhere: any, requesterId: string, transaction?: Transaction): Promise<any> {
+  const hostInterviews = await Interview.findAll({
+    where: { host_id: requesterId },
+    attributes: ["guest_id"],
+    transaction,
+  });
+  const assignedGuestIds = hostInterviews.map((i: any) => i.guest_id);
+
+  return {
+    ...baseWhere,
+    [Op.or]: [
+      { host_id: requesterId },
+      { id: { [Op.in]: assignedGuestIds } },
+    ],
+  };
+}
+
 // Shared helper: fetch a single guest by an arbitrary where-clause,
 // honoring the requester's visibility window, or throw 404.
 async function findVisibleGuestOrThrow(
@@ -51,7 +69,7 @@ async function findVisibleGuestOrThrow(
   let where = baseWhere;
 
   if (isHost) {
-    where = { ...baseWhere, host_id: requester.id };
+    where = await getHostGuestWhereClause(baseWhere, requester.id, transaction);
   } else {
     const visibilityFilter = getVisibilityFilter(
       toVisibilitySubject(requester),
@@ -225,7 +243,7 @@ class GuestService {
     let where: any = {};
 
     if (isHost) {
-      where = { host_id: requester.id };
+      where = await getHostGuestWhereClause({}, requester.id);
     } else {
       const visibilityFilter = getVisibilityFilter(
         toVisibilitySubject(requester),
@@ -289,7 +307,7 @@ class GuestService {
     let where: any = { id };
 
     if (isHost) {
-      where = { id, host_id: requester.id };
+      where = await getHostGuestWhereClause({ id }, requester.id);
     } else {
       const visibilityFilter = getVisibilityFilter(
         toVisibilitySubject(requester),
@@ -317,7 +335,7 @@ class GuestService {
     let where: any = { slug };
 
     if (isHost) {
-      where = { slug, host_id: requester.id };
+      where = await getHostGuestWhereClause({ slug }, requester.id);
     } else {
       const visibilityFilter = getVisibilityFilter(
         toVisibilitySubject(requester),
