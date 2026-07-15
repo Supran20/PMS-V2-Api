@@ -24,59 +24,74 @@ import {
 
 // Builds the VisibilitySubject shape from a req.user instance.
 // Centralized here so both getAllGuests/getGuestById/getGuestBySlug
-// (and interview.service.ts, if you copy this) build it the same way.
+// (and interview.service.ts) build it the same way.
 function toVisibilitySubject(requester: any): VisibilitySubject {
   return {
     id: requester?.id,
     role_name: requester?.roles?.[0]?.role_name ?? null,
     created_at: requester?.created_at,
+    visibility_mode: requester?.visibility_mode ?? "default",
     visibility_start_date: requester?.visibility_start_date ?? null,
     visibility_end_date: requester?.visibility_end_date ?? null,
   };
 }
 
-// Guests directly assigned to a Host (Guest.host_id) must always be
-// visible to that Host, regardless of created_at timing — see
-// visibility.util.ts's assignmentField option.
-const GUEST_ASSIGNMENT_OPTIONS = { assignmentField: "host_id" };
-
-async function getHostGuestWhereClause(baseWhere: any, requesterId: string, transaction?: Transaction): Promise<any> {
+// For a Host, resolves the guest ids they're indirectly assigned to via
+// an Interview (i.e. guests they've interviewed but don't directly own
+// via Guest.host_id). OR'd into the visibility filter as a bonus grant —
+// never a restriction — alongside direct host_id assignment and the
+// time-based window.
+async function getHostAssignedGuestIds(
+  requesterId: string,
+  transaction?: Transaction,
+): Promise<string[]> {
   const hostInterviews = await Interview.findAll({
     where: { host_id: requesterId },
     attributes: ["guest_id"],
     transaction,
   });
-  const assignedGuestIds = hostInterviews.map((i: any) => i.guest_id);
+  return hostInterviews.map((i: any) => i.guest_id);
+}
 
-  return {
-    ...baseWhere,
-    [Op.or]: [
-      { host_id: requesterId },
-      { id: { [Op.in]: assignedGuestIds } },
-    ],
-  };
+// Builds the fully merged where-clause for guest queries, honoring:
+//  - time-based visibility (default/range/all, per requester.visibility_mode)
+//  - direct assignment (Guest.host_id === requester.id), Host only
+//  - indirect assignment (guest ids reached via Interview), Host only
+// Admin and "all"-mode Host/Staff get back the original baseWhere
+// untouched, since getVisibilityFilter returns null for them.
+async function buildGuestVisibilityWhere(
+  baseWhere: Record<string, any>,
+  requester: any,
+  transaction?: Transaction,
+): Promise<Record<string, any>> {
+  const isHost = requester?.roles?.[0]?.role_name === "Host";
+
+  let assignmentIds: string[] | undefined;
+  if (isHost) {
+    assignmentIds = await getHostAssignedGuestIds(requester.id, transaction);
+  }
+
+  const visibilityFilter = getVisibilityFilter(toVisibilitySubject(requester), {
+    assignmentField: "host_id",
+    assignmentIds,
+  });
+
+  return mergeVisibilityFilter(baseWhere, visibilityFilter);
 }
 
 // Shared helper: fetch a single guest by an arbitrary where-clause,
-// honoring the requester's visibility window, or throw 404.
+// honoring the requester's visibility settings, or throw 404.
 async function findVisibleGuestOrThrow(
   baseWhere: Record<string, any>,
   requester: any,
   transaction?: Transaction,
   include?: any[],
 ): Promise<Guest> {
-  const isHost = requester?.roles?.[0]?.role_name === "Host";
-  let where = baseWhere;
-
-  if (isHost) {
-    where = await getHostGuestWhereClause(baseWhere, requester.id, transaction);
-  } else {
-    const visibilityFilter = getVisibilityFilter(
-      toVisibilitySubject(requester),
-      GUEST_ASSIGNMENT_OPTIONS,
-    );
-    where = mergeVisibilityFilter(baseWhere, visibilityFilter);
-  }
+  const where = await buildGuestVisibilityWhere(
+    baseWhere,
+    requester,
+    transaction,
+  );
 
   const guest = await Guest.findOne({ where, transaction, include });
   if (!guest) throw new ApiError(404, "Guest not found");
@@ -239,18 +254,7 @@ class GuestService {
   // GET All Guests
   //--------------------------------
   static async getAllGuests(requester: any): Promise<any[]> {
-    const isHost = requester?.roles?.[0]?.role_name === "Host";
-    let where: any = {};
-
-    if (isHost) {
-      where = await getHostGuestWhereClause({}, requester.id);
-    } else {
-      const visibilityFilter = getVisibilityFilter(
-        toVisibilitySubject(requester),
-        GUEST_ASSIGNMENT_OPTIONS,
-      );
-      where = mergeVisibilityFilter({}, visibilityFilter);
-    }
+    const where = await buildGuestVisibilityWhere({}, requester);
 
     const guests = await Guest.findAll({
       where,
@@ -303,24 +307,13 @@ class GuestService {
   // GET Guest by ID
   //--------------------------------
   static async getGuestById(id: string, requester: any): Promise<Guest> {
-    const isHost = requester?.roles?.[0]?.role_name === "Host";
-    let where: any = { id };
-
-    if (isHost) {
-      where = await getHostGuestWhereClause({ id }, requester.id);
-    } else {
-      const visibilityFilter = getVisibilityFilter(
-        toVisibilitySubject(requester),
-        GUEST_ASSIGNMENT_OPTIONS,
-      );
-      where = mergeVisibilityFilter({ id }, visibilityFilter);
-    }
+    const where = await buildGuestVisibilityWhere({ id }, requester);
 
     const guest = await Guest.findOne({ where });
 
     if (!guest) {
       // Same 404 whether it doesn't exist or is just outside the
-      // requester's visibility window — don't leak existence.
+      // requester's visibility settings — don't leak existence.
       throw new ApiError(404, "Guest not found");
     }
 
@@ -331,18 +324,7 @@ class GuestService {
   // GET Guest by Slug
   //--------------------------------
   static async getGuestBySlug(slug: string, requester: any): Promise<any> {
-    const isHost = requester?.roles?.[0]?.role_name === "Host";
-    let where: any = { slug };
-
-    if (isHost) {
-      where = await getHostGuestWhereClause({ slug }, requester.id);
-    } else {
-      const visibilityFilter = getVisibilityFilter(
-        toVisibilitySubject(requester),
-        GUEST_ASSIGNMENT_OPTIONS,
-      );
-      where = mergeVisibilityFilter({ slug }, visibilityFilter);
-    }
+    const where = await buildGuestVisibilityWhere({ slug }, requester);
 
     const guest = await Guest.findOne({
       where,
