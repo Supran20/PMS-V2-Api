@@ -28,13 +28,36 @@ function toVisibilitySubject(requester: any): VisibilitySubject {
     id: requester?.id,
     role_name: requester?.roles?.[0]?.role_name ?? null,
     created_at: requester?.created_at,
+    visibility_mode: requester?.visibility_mode ?? "default",
     visibility_start_date: requester?.visibility_start_date ?? null,
     visibility_end_date: requester?.visibility_end_date ?? null,
   };
 }
 
+// host_id lives directly on Interview, so unlike Guest (which needs an
+// extra join through Interview to resolve indirect assignment), the
+// assignment override here is a single flat field — no assignmentIds
+// lookup needed.
+const INTERVIEW_ASSIGNMENT_OPTIONS = { assignmentField: "host_id" };
+
+// Builds the fully merged where-clause for interview queries, honoring:
+//  - time-based visibility (default/range/all, per requester.visibility_mode)
+//  - direct assignment (Interview.host_id === requester.id), Host only
+// Admin and "all"-mode Host/Staff get back the original baseWhere
+// untouched, since getVisibilityFilter returns null for them.
+function buildInterviewVisibilityWhere(
+  baseWhere: Record<string, any>,
+  requester: any,
+): Record<string, any> {
+  const visibilityFilter = getVisibilityFilter(
+    toVisibilitySubject(requester),
+    INTERVIEW_ASSIGNMENT_OPTIONS,
+  );
+  return mergeVisibilityFilter(baseWhere, visibilityFilter);
+}
+
 // Shared helper: fetch a single interview honoring the requester's
-// visibility window, or throw 404. Used by every write path below so
+// visibility settings, or throw 404. Used by every write path below so
 // the "can't touch what you can't see" rule lives in exactly one place.
 async function findVisibleInterviewOrThrow(
   id: string,
@@ -42,15 +65,7 @@ async function findVisibleInterviewOrThrow(
   transaction: Transaction,
   lock?: any,
 ): Promise<Interview> {
-  const isHost = requester?.roles?.[0]?.role_name === "Host";
-  let where: any = { id };
-
-  if (isHost) {
-    where.host_id = requester.id;
-  } else {
-    const visibilityFilter = getVisibilityFilter(toVisibilitySubject(requester));
-    where = mergeVisibilityFilter({ id }, visibilityFilter);
-  }
+  const where = buildInterviewVisibilityWhere({ id }, requester);
 
   const interview = await Interview.findOne({ where, transaction, lock });
   if (!interview) throw new ApiError(404, "Interview not found");
@@ -347,17 +362,7 @@ class InterviewService {
   // GET ALL
   //--------------------------------
   static async getAll(requester: any): Promise<Interview[]> {
-    const isHost = requester?.roles?.[0]?.role_name === "Host";
-    let where: any = {};
-
-    if (isHost) {
-      where.host_id = requester.id;
-    } else {
-      const visibilityFilter = getVisibilityFilter(
-        toVisibilitySubject(requester),
-      );
-      where = mergeVisibilityFilter({}, visibilityFilter);
-    }
+    const where = buildInterviewVisibilityWhere({}, requester);
 
     return await Interview.findAll({
       where,
@@ -402,17 +407,7 @@ class InterviewService {
   // GET BY ID
   //--------------------------------
   static async getById(id: string, requester: any): Promise<Interview> {
-    const isHost = requester?.roles?.[0]?.role_name === "Host";
-    let where: any = { id };
-
-    if (isHost) {
-      where.host_id = requester.id;
-    } else {
-      const visibilityFilter = getVisibilityFilter(
-        toVisibilitySubject(requester),
-      );
-      where = mergeVisibilityFilter({ id }, visibilityFilter);
-    }
+    const where = buildInterviewVisibilityWhere({ id }, requester);
 
     const interview = await Interview.findOne({ where });
     if (!interview) throw new ApiError(404, "Interview not found");
@@ -454,33 +449,15 @@ class InterviewService {
     const transaction = await sequelize.transaction();
 
     try {
-      const isHost = requester?.roles?.[0]?.role_name === "Host";
-      let where: any = { id: { [Op.in]: orderedIds } };
+      const where = buildInterviewVisibilityWhere(
+        { id: { [Op.in]: orderedIds } },
+        requester,
+      );
 
-      if (isHost) {
-        where.host_id = requester.id;
-        const visibleCount = await Interview.count({ where, transaction });
+      const visibleCount = await Interview.count({ where, transaction });
 
-        if (visibleCount !== orderedIds.length) {
-          throw new ApiError(404, "One or more interviews not found");
-        }
-      } else {
-        const visibilityFilter = getVisibilityFilter(
-          toVisibilitySubject(requester),
-        );
-
-        if (visibilityFilter) {
-          where = mergeVisibilityFilter(
-            where,
-            visibilityFilter,
-          );
-
-          const visibleCount = await Interview.count({ where, transaction });
-
-          if (visibleCount !== orderedIds.length) {
-            throw new ApiError(404, "One or more interviews not found");
-          }
-        }
+      if (visibleCount !== orderedIds.length) {
+        throw new ApiError(404, "One or more interviews not found");
       }
 
       const total = orderedIds.length;
