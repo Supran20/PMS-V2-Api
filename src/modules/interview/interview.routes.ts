@@ -19,6 +19,8 @@ router.post(
 
 router.get("/", authenticate, InterviewController.getAll);
 
+router.get("/episode-meta", authenticate, InterviewController.getEpisodeMeta);
+
 router.get("/:id", authenticate, InterviewController.getById);
 
 router.patch("/reorder", authenticate, InterviewController.reorder);

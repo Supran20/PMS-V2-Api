@@ -14,6 +14,48 @@ import Media from "../media/media.model";
 import { generateInterviewEmailHtml } from "../../services/email.service";
 import eventBus from "../../events/eventBus";
 import { EVENTS } from "../../events/events.constants";
+import {
+  getVisibilityFilter,
+  mergeVisibilityFilter,
+  VisibilitySubject,
+} from "../../utils/visibility.util";
+
+// Same shape-building helper used in guest.service.ts — kept local here
+// to avoid touching that file again. Consider moving to visibility.util.ts
+// as a shared export if you want a single source of truth.
+function toVisibilitySubject(requester: any): VisibilitySubject {
+  return {
+    id: requester?.id,
+    role_name: requester?.roles?.[0]?.role_name ?? null,
+    created_at: requester?.created_at,
+    visibility_start_date: requester?.visibility_start_date ?? null,
+    visibility_end_date: requester?.visibility_end_date ?? null,
+  };
+}
+
+// Shared helper: fetch a single interview honoring the requester's
+// visibility window, or throw 404. Used by every write path below so
+// the "can't touch what you can't see" rule lives in exactly one place.
+async function findVisibleInterviewOrThrow(
+  id: string,
+  requester: any,
+  transaction: Transaction,
+  lock?: any,
+): Promise<Interview> {
+  const isHost = requester?.roles?.[0]?.role_name === "Host";
+  let where: any = { id };
+
+  if (isHost) {
+    where.host_id = requester.id;
+  } else {
+    const visibilityFilter = getVisibilityFilter(toVisibilitySubject(requester));
+    where = mergeVisibilityFilter({ id }, visibilityFilter);
+  }
+
+  const interview = await Interview.findOne({ where, transaction, lock });
+  if (!interview) throw new ApiError(404, "Interview not found");
+  return interview;
+}
 
 class InterviewService {
   //--------------------------------
@@ -95,8 +137,11 @@ class InterviewService {
     newEpisode: number,
     updaterId: string,
     transaction: Transaction,
+    requester?: any,
   ) {
-    const interview = await Interview.findByPk(interviewId, { transaction });
+    const interview = requester
+      ? await findVisibleInterviewOrThrow(interviewId, requester, transaction)
+      : await Interview.findByPk(interviewId, { transaction });
 
     if (!interview) {
       throw new ApiError(404, "Interview not found");
@@ -301,8 +346,21 @@ class InterviewService {
   //--------------------------------
   // GET ALL
   //--------------------------------
-  static async getAll(): Promise<Interview[]> {
+  static async getAll(requester: any): Promise<Interview[]> {
+    const isHost = requester?.roles?.[0]?.role_name === "Host";
+    let where: any = {};
+
+    if (isHost) {
+      where.host_id = requester.id;
+    } else {
+      const visibilityFilter = getVisibilityFilter(
+        toVisibilitySubject(requester),
+      );
+      where = mergeVisibilityFilter({}, visibilityFilter);
+    }
+
     return await Interview.findAll({
+      where,
       order: [["episode", "DESC"]],
       include: [
         {
@@ -343,29 +401,95 @@ class InterviewService {
   //--------------------------------
   // GET BY ID
   //--------------------------------
-  static async getById(id: string): Promise<Interview> {
-    const interview = await Interview.findByPk(id);
+  static async getById(id: string, requester: any): Promise<Interview> {
+    const isHost = requester?.roles?.[0]?.role_name === "Host";
+    let where: any = { id };
+
+    if (isHost) {
+      where.host_id = requester.id;
+    } else {
+      const visibilityFilter = getVisibilityFilter(
+        toVisibilitySubject(requester),
+      );
+      where = mergeVisibilityFilter({ id }, visibilityFilter);
+    }
+
+    const interview = await Interview.findOne({ where });
     if (!interview) throw new ApiError(404, "Interview not found");
     return interview;
   }
 
   //--------------------------------
-  // REORDER (DnD)
+  // GET EPISODE META (unrestricted — no visibility filter)
+  //--------------------------------
+  static async getEpisodeMeta(): Promise<{
+    maxEpisode: number;
+    existingEpisodes: { id: string; episode: number; status: string }[];
+  }> {
+    const interviews = await Interview.findAll({
+      attributes: ["id", "episode", "status"],
+      order: [["episode", "DESC"]],
+    });
+
+    const existingEpisodes = interviews.map((i) => ({
+      id: i.id,
+      episode: i.episode,
+      status: i.status,
+    }));
+
+    const maxEpisode = existingEpisodes.length
+      ? Math.max(...existingEpisodes.map((e) => e.episode))
+      : 0;
+
+    return { maxEpisode, existingEpisodes };
+  }
+
+  //--------------------------------
+  // REORDER (DnD) — bulk operation
   //--------------------------------
   static async reorderInterviews(
     orderedIds: string[],
-    updaterId: string,
+    requester: any,
   ): Promise<void> {
     const transaction = await sequelize.transaction();
 
     try {
+      const isHost = requester?.roles?.[0]?.role_name === "Host";
+      let where: any = { id: { [Op.in]: orderedIds } };
+
+      if (isHost) {
+        where.host_id = requester.id;
+        const visibleCount = await Interview.count({ where, transaction });
+
+        if (visibleCount !== orderedIds.length) {
+          throw new ApiError(404, "One or more interviews not found");
+        }
+      } else {
+        const visibilityFilter = getVisibilityFilter(
+          toVisibilitySubject(requester),
+        );
+
+        if (visibilityFilter) {
+          where = mergeVisibilityFilter(
+            where,
+            visibilityFilter,
+          );
+
+          const visibleCount = await Interview.count({ where, transaction });
+
+          if (visibleCount !== orderedIds.length) {
+            throw new ApiError(404, "One or more interviews not found");
+          }
+        }
+      }
+
       const total = orderedIds.length;
 
       for (let index = 0; index < total; index++) {
         await Interview.update(
           {
             priority: total - index,
-            updated_by: updaterId,
+            updated_by: requester.id,
           },
           {
             where: { id: orderedIds[index] },
@@ -381,11 +505,13 @@ class InterviewService {
     }
   }
 
-  //Reorder episode
+  //--------------------------------
+  // ASSIGN EPISODE
+  //--------------------------------
   static async assignEpisode(
     interviewId: string,
     targetEpisode: number,
-    updaterId: string,
+    requester: any,
   ): Promise<void> {
     const transaction = await sequelize.transaction();
 
@@ -393,8 +519,9 @@ class InterviewService {
       await this.reorderEpisodes(
         interviewId,
         targetEpisode,
-        updaterId,
+        requester.id,
         transaction,
+        requester,
       );
 
       await transaction.commit();
@@ -403,19 +530,24 @@ class InterviewService {
       throw error;
     }
   }
+
   //--------------------------------
   // UPDATE
   //--------------------------------
   static async updateInterview(
     id: string,
     data: Partial<InterviewAttributes>,
-    updaterId: string,
+    requester: any,
   ): Promise<Interview> {
     const transaction = await sequelize.transaction();
 
     try {
-      const interview = await Interview.findByPk(id, { transaction });
-      if (!interview) throw new ApiError(404, "Interview not found");
+      const interview = await findVisibleInterviewOrThrow(
+        id,
+        requester,
+        transaction,
+      );
+
       if (
         interview.status === "published" &&
         data.episode &&
@@ -425,7 +557,13 @@ class InterviewService {
       }
 
       if (data.episode && data.episode !== interview.episode) {
-        await this.reorderEpisodes(id, data.episode, updaterId, transaction);
+        await this.reorderEpisodes(
+          id,
+          data.episode,
+          requester.id,
+          transaction,
+          requester,
+        );
 
         delete data.episode;
       }
@@ -470,7 +608,7 @@ class InterviewService {
         {
           ...data,
           end_time,
-          updated_by: updaterId,
+          updated_by: requester.id,
         },
         { transaction },
       );
@@ -489,10 +627,21 @@ class InterviewService {
   //--------------------------------
   // DELETE
   //--------------------------------
-  static async deleteInterview(id: string): Promise<void> {
-    const interview = await Interview.findByPk(id);
-    if (!interview) throw new ApiError(404, "Interview not found");
-    await interview.destroy();
+  static async deleteInterview(id: string, requester: any): Promise<void> {
+    const transaction = await sequelize.transaction();
+
+    try {
+      const interview = await findVisibleInterviewOrThrow(
+        id,
+        requester,
+        transaction,
+      );
+      await interview.destroy({ transaction });
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   //--------------------------------

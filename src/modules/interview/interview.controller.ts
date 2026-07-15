@@ -35,7 +35,7 @@ export class InterviewController {
   //--------------------------------
   static async getAll(req: AuthRequest, res: Response) {
     try {
-      const interviews = await InterviewService.getAll();
+      const interviews = await InterviewService.getAll(req.user);
       res.status(200).json({ success: true, data: interviews });
     } catch (error: any) {
       res.status(400).json({ success: false, message: error.message });
@@ -47,10 +47,32 @@ export class InterviewController {
   //--------------------------------
   static async getById(req: AuthRequest, res: Response) {
     try {
-      const interview = await InterviewService.getById(String(req.params.id));
+      const interview = await InterviewService.getById(
+        String(req.params.id),
+        req.user,
+      );
       res.status(200).json({ success: true, data: interview });
     } catch (error: any) {
       res.status(404).json({ success: false, message: error.message });
+    }
+  }
+
+  //--------------------------------
+  // GET EPISODE META
+  //--------------------------------
+  static async getEpisodeMeta(req: AuthRequest, res: Response) {
+    try {
+      const meta = await InterviewService.getEpisodeMeta();
+
+      res.status(200).json({
+        success: true,
+        data: meta,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
     }
   }
 
@@ -68,7 +90,7 @@ export class InterviewController {
         });
       }
 
-      await InterviewService.reorderInterviews(orderedIds, req.user.id);
+      await InterviewService.reorderInterviews(orderedIds, req.user);
 
       res.status(200).json({
         success: true,
@@ -99,7 +121,7 @@ export class InterviewController {
       await InterviewService.assignEpisode(
         interviewId,
         targetEpisode,
-        req.user.id,
+        req.user,
       );
 
       res.status(200).json({
@@ -122,7 +144,7 @@ export class InterviewController {
       const interview = await InterviewService.updateInterview(
         String(req.params.id),
         req.body,
-        req.user.id,
+        req.user,
       );
 
       res.status(200).json({
@@ -140,7 +162,7 @@ export class InterviewController {
   //--------------------------------
   static async delete(req: AuthRequest, res: Response) {
     try {
-      await InterviewService.deleteInterview(String(req.params.id));
+      await InterviewService.deleteInterview(String(req.params.id), req.user);
 
       res.status(200).json({
         success: true,
