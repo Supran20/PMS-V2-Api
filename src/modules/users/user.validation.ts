@@ -5,6 +5,12 @@ const dateField = z.preprocess((value) => {
   return value;
 }, z.coerce.date());
 
+const nullableDateField = z.preprocess((value) => {
+  if (value === "" || value === undefined) return undefined;
+  if (value === "null" || value === null) return null;
+  return value;
+}, z.coerce.date().nullable());
+
 const booleanFromString = z.preprocess((val) => {
   if (val === "true") return true;
   if (val === "false") return false;
@@ -121,8 +127,8 @@ export const updateUserSchema = z
     otp_in_sms: booleanFromString.optional(),
 
     visibility_mode: visibilityModeEnum.optional(),
-    visibility_start_date: dateField.nullable().optional(),
-    visibility_end_date: dateField.nullable().optional(),
+    visibility_start_date: nullableDateField.optional(),
+    visibility_end_date: nullableDateField.optional(),
 
     role_name: z.enum(["Admin", "Host", "Staff"]).optional(),
   })
