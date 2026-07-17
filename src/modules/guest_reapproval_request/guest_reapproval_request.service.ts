@@ -4,13 +4,24 @@ import GuestReapprovalRequest from "./guest_reapproval_request.model";
 import Guest from "../guest/guest.model";
 import User from "../users/user.model";
 import Interview from "../interview/interview.model";
+import Media from "../media/media.model";
 import PermissionSettings from "../settings/permission_settings/permission_set.model";
 import ApiError from "../../middleware/error-handlers/ApiError";
 import eventBus from "../../events/eventBus";
 import { EVENTS } from "../../events/events.constants";
 
 const REVIEW_INCLUDE = [
-  { model: Guest, as: "guest" },
+  {
+    model: Guest,
+    as: "guest",
+    include: [
+      {
+        model: Media,
+        as: "profileImage",
+        attributes: ["id", "media_name", "path", "type", "tag_id"],
+      },
+    ],
+  },
   { model: User, as: "requester", attributes: ["id", "full_name", "email"] },
   { model: User, as: "proposedHost", attributes: ["id", "full_name"] },
   { model: User, as: "reviewer", attributes: ["id", "full_name"] },
