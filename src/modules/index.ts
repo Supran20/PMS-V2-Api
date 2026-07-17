@@ -9,6 +9,7 @@ import interviewRoutes from "./interview/interview.routes";
 import guestNoteRoutes from "./guest_note/guest_note.routes";
 import settingsRoutes from "./settings/settings.routes";
 import permissionSettingsRoutes from "./settings/permission_settings/permission_set.routes";
+import GuestReapprovalRoutes from "./guest_reapproval_request/guest_reapproval_request.routes";
 import logRoutes from "./log/log.routes";
 
 const router = Router();
@@ -23,6 +24,7 @@ router.use("/interviews", interviewRoutes);
 router.use("/guest_notes", guestNoteRoutes);
 router.use("/settings", settingsRoutes);
 router.use("/permission-sett", permissionSettingsRoutes);
+router.use("/guest-reapproval-requests", GuestReapprovalRoutes);
 router.use("/logs", logRoutes);
 
 export default router;

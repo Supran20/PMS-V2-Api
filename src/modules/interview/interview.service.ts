@@ -19,6 +19,7 @@ import {
   mergeVisibilityFilter,
   VisibilitySubject,
 } from "../../utils/visibility.util";
+import GuestReapprovalRequestService from "../guest_reapproval_request/guest_reapproval_request.service";
 
 // Same shape-building helper used in guest.service.ts — kept local here
 // to avoid touching that file again. Consider moving to visibility.util.ts
@@ -268,6 +269,64 @@ class InterviewService {
       if (!guest) {
         throw new ApiError(400, "Guest not found");
       }
+
+      // --------------------------------
+      // Repeat-booking gate: if this guest already has a published
+      // interview, they can only be booked again while Guest.approved
+      // is true. Detect-only — no writes here; the frontend shows a
+      // confirm modal and the actual request is created via a separate
+      // explicit POST /guest-reapprovals call.
+      // --------------------------------
+      const priorPublishedInterview = await Interview.findOne({
+        where: { guest_id: data.guest_id, status: "published" },
+        transaction,
+      });
+
+      if (priorPublishedInterview && !guest.approved) {
+        const pendingRequest =
+          await GuestReapprovalRequestService.findPendingRequestForGuest(
+            guest.id,
+          );
+
+        const error: any = pendingRequest
+          ? new ApiError(
+              409,
+              "This guest requires re-approval and a request is already under review.",
+            )
+          : new ApiError(
+              409,
+              "This guest has a prior published interview and requires re-approval before being booked again.",
+            );
+
+        error.code = pendingRequest
+          ? "GUEST_REQUIRES_REAPPROVAL_PENDING"
+          : "GUEST_REQUIRES_REAPPROVAL_NEW";
+        error.guestId = guest.id;
+        if (pendingRequest) error.reapprovalRequestId = pendingRequest.id;
+
+        throw error;
+      }
+
+      // if (priorPublishedInterview && !guest.approved) {
+      //   const request =
+      //     await GuestReapprovalRequestService.createRepeatBookingRequest(
+      //       guest.id,
+      //       creatorId,
+      //       data.host_id ?? guest.host_id ?? null,
+      //       transaction,
+      //     );
+
+      //   await transaction.commit();
+
+      //   const error: any = new ApiError(
+      //     409,
+      //     "This guest has a prior published interview and requires re-approval before being booked again.",
+      //   );
+      //   error.code = "GUEST_REQUIRES_REAPPROVAL";
+      //   error.guestId = guest.id;
+      //   error.reapprovalRequestId = request.id;
+      //   throw error;
+      // }
 
       // Determine host (allow override)
       let hostId: string;

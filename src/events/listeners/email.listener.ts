@@ -13,6 +13,7 @@ import {
   generateGuestApprovalEmailHtml,
   generateGuestStatusEmailHtml,
   generateInterviewEmailHtml,
+  generateGuestReapprovalRequestEmailHtml,
 } from "../../services/email.service";
 
 // ========================================
@@ -235,5 +236,136 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
     }
   } catch (error) {
     console.error("Listener error (INTERVIEW_CREATED):", error);
+  }
+});
+
+// ========================================
+// GUEST REAPPROVAL REQUESTED → Notify Approvers
+// ========================================
+eventBus.on(EVENTS.GUEST_REAPPROVAL_REQUESTED, async (payload: any) => {
+  try {
+    const { guestName, requestedByName, triggerSource, proposedHostName } =
+      payload;
+
+    const permission = await PermissionSettings.findOne({
+      where: { permission_type: "guest_approver" },
+    });
+
+    if (!permission || !permission.user_ids?.length) return;
+
+    const approvers = await User.findAll({
+      where: { id: permission.user_ids },
+      attributes: ["id", "full_name", "email"],
+    });
+
+    for (const approver of approvers) {
+      if (!approver.email) continue;
+
+      const log = await LogService.createLog({
+        event_type: "guest.reapproval_requested",
+        recipient_email: approver.email,
+        status: "pending",
+      });
+
+      try {
+        const html = await generateGuestReapprovalRequestEmailHtml(
+          guestName,
+          requestedByName,
+          triggerSource,
+          proposedHostName,
+        );
+
+        await sendEmail({
+          to: approver.email,
+          subject: `Guest Re-approval Requested - ${guestName}`,
+          text: `Guest "${guestName}" requires re-approval before further booking.`,
+          html,
+        });
+
+        await LogService.markAsSent(log.id);
+      } catch (error: any) {
+        await LogService.markAsFailed(log.id, error);
+      }
+    }
+  } catch (error) {
+    console.error("Listener error (GUEST_REAPPROVAL_REQUESTED):", error);
+  }
+});
+
+// ========================================
+// GUEST REAPPROVED → Notify Requester
+// ========================================
+eventBus.on(EVENTS.GUEST_REAPPROVED, async (payload: any) => {
+  try {
+    const { guestName, reviewerName, requesterEmail, requesterName } = payload;
+
+    if (!requesterEmail) return;
+
+    const log = await LogService.createLog({
+      event_type: "guest.reapproved",
+      recipient_email: requesterEmail,
+      status: "pending",
+    });
+
+    try {
+      const html = await generateGuestStatusEmailHtml(
+        requesterName ?? "there",
+        guestName,
+        "approved",
+        reviewerName,
+      );
+
+      await sendEmail({
+        to: requesterEmail,
+        subject: `Guest Re-approved - ${guestName}`,
+        text: `"${guestName}" has been re-approved and can now be booked.`,
+        html,
+      });
+
+      await LogService.markAsSent(log.id);
+    } catch (error: any) {
+      await LogService.markAsFailed(log.id, error);
+    }
+  } catch (error) {
+    console.error("Listener error (GUEST_REAPPROVED):", error);
+  }
+});
+
+// ========================================
+// GUEST REAPPROVAL REJECTED → Notify Requester
+// ========================================
+eventBus.on(EVENTS.GUEST_REAPPROVAL_REJECTED, async (payload: any) => {
+  try {
+    const { guestName, reviewerName, requesterEmail, requesterName } = payload;
+
+    if (!requesterEmail) return;
+
+    const log = await LogService.createLog({
+      event_type: "guest.reapproval_rejected",
+      recipient_email: requesterEmail,
+      status: "pending",
+    });
+
+    try {
+      const html = await generateGuestStatusEmailHtml(
+        requesterName ?? "there",
+        guestName,
+        "rejected",
+        reviewerName,
+      );
+
+      await sendEmail({
+        to: requesterEmail,
+        subject: `Guest Re-approval Rejected - ${guestName}`,
+        text: `Your request to book "${guestName}" again was not approved.`,
+        html,
+      });
+
+      await LogService.markAsSent(log.id);
+    } catch (error: any) {
+      await LogService.markAsFailed(log.id, error);
+    }
+  } catch (error) {
+    console.error("Listener error (GUEST_REAPPROVAL_REJECTED):", error);
   }
 });
