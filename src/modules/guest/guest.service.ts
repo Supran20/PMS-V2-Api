@@ -21,6 +21,8 @@ import {
   mergeVisibilityFilter,
   VisibilitySubject,
 } from "../../utils/visibility.util";
+import { fn, col, where as sequelizeWhere } from "sequelize";
+import GuestReapprovalRequestService from "../guest_reapproval_request/guest_reapproval_request.service";
 
 // Builds the VisibilitySubject shape from a req.user instance.
 // Centralized here so both getAllGuests/getGuestById/getGuestBySlug
@@ -100,6 +102,44 @@ async function findVisibleGuestOrThrow(
 
 class GuestService {
   //--------------------------------
+  // CHECK Guest Exists (unrestricted — global identity check)
+  //--------------------------------
+  // Deliberately bypasses visibility.util entirely, same reasoning as
+  // getEpisodeMeta: guest identity uniqueness is a global fact, not
+  // visibility-scoped content. Matches case-insensitively on email and
+  // digits-only on phone (via DB-side regexp_replace, since stored
+  // phone values may carry inconsistent formatting). Callers must only
+  // ever surface { id } outward from this — never the full row — to a
+  // requester who may not otherwise have visibility into this guest.
+  static async checkGuestExists(
+    identity: { email?: string | null; phone?: string | null },
+    transaction?: Transaction,
+  ): Promise<Guest | null> {
+    const orConditions: any[] = [];
+
+    const email = identity.email?.trim().toLowerCase();
+    if (email) {
+      orConditions.push(sequelizeWhere(fn("lower", col("email")), email));
+    }
+
+    const normalizedPhone = identity.phone?.replace(/\D/g, "");
+    if (normalizedPhone) {
+      orConditions.push(
+        sequelizeWhere(
+          fn("regexp_replace", col("phone"), "\\D", "", "g"),
+          normalizedPhone,
+        ),
+      );
+    }
+
+    if (orConditions.length === 0) return null;
+
+    return Guest.findOne({
+      where: { [Op.or]: orConditions },
+      transaction,
+    });
+  }
+  //--------------------------------
   // CREATE Guest
   //--------------------------------
   static async createGuest(
@@ -110,6 +150,39 @@ class GuestService {
     const transaction: Transaction = await sequelize.transaction();
 
     try {
+      // --------------------------------
+      // 0️⃣ Duplicate identity check (unrestricted, read-only)
+      // --------------------------------
+      const existingGuest = await GuestService.checkGuestExists(
+        { email: data.email, phone: data.phone },
+        transaction,
+      );
+
+      if (existingGuest) {
+        const pendingRequest =
+          await GuestReapprovalRequestService.findPendingRequestForGuest(
+            existingGuest.id,
+          );
+
+        const error: any = pendingRequest
+          ? new ApiError(
+              409,
+              "A guest with this email or phone already exists and is currently under review.",
+            )
+          : new ApiError(
+              409,
+              "A guest with this email or phone already exists. Would you like to request access?",
+            );
+
+        error.code = pendingRequest
+          ? "GUEST_DUPLICATE_PENDING_REVIEW"
+          : "GUEST_DUPLICATE_FOUND";
+        error.guestId = existingGuest.id;
+        error.guestName = existingGuest.full_name;
+        if (pendingRequest) error.reapprovalRequestId = pendingRequest.id;
+
+        throw error;
+      }
       // --------------------------------
       // 1️⃣ Check slug uniqueness
       // --------------------------------

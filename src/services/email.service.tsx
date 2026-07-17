@@ -4,6 +4,7 @@ import OtpEmail from "../emails/templates/otp-email";
 import InterviewEmail from "../emails/templates/interview-email";
 import GuestApprovalEmail from "../emails/templates/GuestApprovalEmail";
 import GuestStatusEmail from "../emails/templates/GuestStatusEmail";
+import GuestReapprovalRequestEmail from "../emails/templates/GuestReapprovalRequestEmail";
 
 export function generateOtpEmailHtml(otp: string) {
   return render(<OtpEmail otp={otp} />);
@@ -118,4 +119,20 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
     console.error("Email sending failed:", error);
     throw new Error("Failed to send email");
   }
+}
+
+export async function generateGuestReapprovalRequestEmailHtml(
+  guestName: string,
+  requestedByName: string,
+  triggerSource: "duplicate_guest_attempt" | "repeat_booking",
+  proposedHostName?: string,
+): Promise<string> {
+  return render(
+    <GuestReapprovalRequestEmail
+      guestName={guestName}
+      requestedByName={requestedByName}
+      triggerSource={triggerSource}
+      proposedHostName={proposedHostName}
+    />,
+  );
 }

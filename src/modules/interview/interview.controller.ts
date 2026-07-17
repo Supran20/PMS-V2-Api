@@ -26,7 +26,13 @@ export class InterviewController {
         data: interview,
       });
     } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(error.statusCode ?? 400).json({
+        success: false,
+        message: error.message,
+        code: error.code,
+        guestId: error.guestId,
+        reapprovalRequestId: error.reapprovalRequestId,
+      });
     }
   }
 

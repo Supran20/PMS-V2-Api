@@ -11,6 +11,7 @@ import Interview from "./interview/interview.model";
 import GuestNote from "./guest_note/guest_note.model";
 import Settings from "./settings/settings.model";
 import PermissionSettings from "./settings/permission_settings/permission_set.model";
+import GuestReapprovalRequest from "./guest_reapproval_request/guest_reapproval_request.model";
 import Log from "./log/log.model";
 
 export const setupAssociations = () => {
@@ -264,6 +265,56 @@ export const setupAssociations = () => {
   PermissionSettings.belongsTo(User, {
     foreignKey: "updated_by",
     as: "updater",
+  });
+
+  //------------------------------------------------
+  // GUEST REAPPROVAL REQUEST ASSOCIATIONS
+  //------------------------------------------------
+  GuestReapprovalRequest.belongsTo(Guest, {
+    foreignKey: "guest_id",
+    as: "guest",
+    onDelete: "CASCADE",
+  });
+
+  Guest.hasMany(GuestReapprovalRequest, {
+    foreignKey: "guest_id",
+    as: "reapprovalRequests",
+  });
+
+  GuestReapprovalRequest.belongsTo(User, {
+    foreignKey: "requested_by",
+    as: "requester",
+    onDelete: "CASCADE",
+  });
+
+  GuestReapprovalRequest.belongsTo(User, {
+    foreignKey: "proposed_host_id",
+    as: "proposedHost",
+    onDelete: "SET NULL",
+  });
+
+  GuestReapprovalRequest.belongsTo(Interview, {
+    foreignKey: "interview_id",
+    as: "interview",
+    onDelete: "SET NULL",
+  });
+
+  GuestReapprovalRequest.belongsTo(User, {
+    foreignKey: "reviewed_by",
+    as: "reviewer",
+    onDelete: "SET NULL",
+  });
+
+  GuestReapprovalRequest.belongsTo(User, {
+    foreignKey: "created_by",
+    as: "creator",
+    onDelete: "SET NULL",
+  });
+
+  GuestReapprovalRequest.belongsTo(User, {
+    foreignKey: "updated_by",
+    as: "updater",
+    onDelete: "SET NULL",
   });
 
   //------------------------------------------------
