@@ -24,6 +24,8 @@ export interface UserAttributes {
   visibility_start_date?: Date | null;
   visibility_end_date?: Date | null;
 
+  hide_guest_contacts?: boolean;
+
   created_at?: Date;
   updated_at?: Date;
 }

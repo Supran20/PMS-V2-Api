@@ -39,6 +39,8 @@ export const createUserSchema = z
     visibility_start_date: dateField.optional(),
     visibility_end_date: dateField.optional(),
 
+    hide_guest_contacts: booleanFromString.optional(),
+
     role_name: z.enum(["Admin", "Host", "Staff"]),
   })
   .superRefine((data, ctx) => {
@@ -129,6 +131,8 @@ export const updateUserSchema = z
     visibility_mode: visibilityModeEnum.optional(),
     visibility_start_date: nullableDateField.optional(),
     visibility_end_date: nullableDateField.optional(),
+
+    hide_guest_contacts: booleanFromString.optional(),
 
     role_name: z.enum(["Admin", "Host", "Staff"]).optional(),
   })

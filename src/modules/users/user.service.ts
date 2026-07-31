@@ -74,6 +74,7 @@ class UserService {
           visibility_mode,
           visibility_start_date,
           visibility_end_date,
+          hide_guest_contacts: data.hide_guest_contacts ?? false,
         },
         { transaction },
       );
@@ -279,6 +280,7 @@ class UserService {
         visibility_mode,
         visibility_start_date,
         visibility_end_date,
+        hide_guest_contacts,
         ...userData
       } = data;
 
@@ -290,6 +292,12 @@ class UserService {
         Object.prototype.hasOwnProperty.call(data, "visibility_start_date") ||
         Object.prototype.hasOwnProperty.call(data, "visibility_end_date");
 
+      // Only Admin may toggle whether a user's guest-contact view is restricted.
+      const isTouchingContactVisibility = Object.prototype.hasOwnProperty.call(
+        data,
+        "hide_guest_contacts",
+      );
+
       const requesterRoleName = requester?.roles?.[0]?.role_name;
 
       if (isTouchingVisibility && requesterRoleName !== "Admin") {
@@ -299,9 +307,20 @@ class UserService {
         );
       }
 
+      if (isTouchingContactVisibility && requesterRoleName !== "Admin") {
+        throw new ApiError(
+          403,
+          "Only Admin can modify a user's guest contact visibility",
+        );
+      }
+
       // Resolve the role this user will have AFTER this update
       const effectiveRoleName = role_name ?? user.roles?.[0]?.role_name ?? null;
       const isRestrictedRole = RESTRICTED_ROLES.includes(effectiveRoleName);
+
+      if (isTouchingContactVisibility) {
+        userData.hide_guest_contacts = hide_guest_contacts;
+      }
 
       if (!isRestrictedRole) {
         // Admin (or a role change into Admin) is always unrestricted —
