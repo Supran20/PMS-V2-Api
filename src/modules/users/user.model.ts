@@ -34,6 +34,8 @@ export class User
   declare visibility_start_date: Date | null;
   declare visibility_end_date: Date | null;
 
+  declare hide_guest_contacts: boolean;
+
   declare created_at: Date;
   declare updated_at: Date;
 
@@ -126,6 +128,11 @@ User.init(
     visibility_end_date: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    hide_guest_contacts: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
     created_at: {
       type: DataTypes.DATE,

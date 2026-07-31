@@ -20,7 +20,7 @@ import {
   VisibilitySubject,
 } from "../../utils/visibility.util";
 import GuestReapprovalRequestService from "../guest_reapproval_request/guest_reapproval_request.service";
-
+import { maskGuestContacts } from "../../utils/guest-contact.util";
 // Same shape-building helper used in guest.service.ts — kept local here
 // to avoid touching that file again. Consider moving to visibility.util.ts
 // as a shared export if you want a single source of truth.
@@ -423,14 +423,22 @@ class InterviewService {
   static async getAll(requester: any): Promise<Interview[]> {
     const where = buildInterviewVisibilityWhere({}, requester);
 
-    return await Interview.findAll({
+    const interviews = await Interview.findAll({
       where,
       order: [["episode", "DESC"]],
       include: [
         {
           model: Guest,
           as: "guest",
-          attributes: ["id", "full_name", "email", "slug"],
+          attributes: [
+            "id",
+            "full_name",
+            "email",
+            "phone",
+            "slug",
+            "created_by",
+            "host_id",
+          ],
 
           include: [
             {
@@ -460,6 +468,14 @@ class InterviewService {
         },
       ],
     });
+
+    const guests = interviews
+      .map((interview) => interview.guest)
+      .filter((g): g is Guest => Boolean(g));
+
+    await maskGuestContacts(guests, requester);
+
+    return interviews;
   }
 
   //--------------------------------

@@ -23,6 +23,10 @@ import {
 } from "../../utils/visibility.util";
 import { fn, col, where as sequelizeWhere } from "sequelize";
 import GuestReapprovalRequestService from "../guest_reapproval_request/guest_reapproval_request.service";
+import {
+  maskGuestContact,
+  maskGuestContacts,
+} from "../../utils/guest-contact.util";
 
 // Builds the VisibilitySubject shape from a req.user instance.
 // Centralized here so both getAllGuests/getGuestById/getGuestBySlug
@@ -356,6 +360,8 @@ class GuestService {
       ],
     });
 
+    await maskGuestContacts(guests, requester);
+
     // 🔥 manually attach tags
     const guestsWithTags = await Promise.all(
       guests.map(async (guest) => {
@@ -389,6 +395,8 @@ class GuestService {
       // requester's visibility settings — don't leak existence.
       throw new ApiError(404, "Guest not found");
     }
+
+    await maskGuestContact(guest, requester);
 
     return guest;
   }
@@ -426,6 +434,8 @@ class GuestService {
     });
 
     if (!guest) throw new ApiError(404, "Guest not found");
+
+    await maskGuestContact(guest, requester);
 
     const tags = await Tags.findAll({
       where: { id: guest.tag_ids || [] },
