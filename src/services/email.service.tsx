@@ -5,6 +5,7 @@ import InterviewEmail from "../emails/templates/interview-email";
 import GuestApprovalEmail from "../emails/templates/GuestApprovalEmail";
 import GuestStatusEmail from "../emails/templates/GuestStatusEmail";
 import GuestReapprovalRequestEmail from "../emails/templates/GuestReapprovalRequestEmail";
+import GuestInterviewEmail from "../emails/templates/GuestInterviewEmail";
 
 export function generateOtpEmailHtml(otp: string) {
   return render(<OtpEmail otp={otp} />);
@@ -133,6 +134,26 @@ export async function generateGuestReapprovalRequestEmailHtml(
       requestedByName={requestedByName}
       triggerSource={triggerSource}
       proposedHostName={proposedHostName}
+    />,
+  );
+}
+
+export async function generateGuestInterviewEmailHtml(
+  guestName: string,
+  hostName: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  studio: string,
+): Promise<string> {
+  return await render(
+    <GuestInterviewEmail
+      guestName={guestName}
+      hostName={hostName}
+      date={date}
+      startTime={startTime}
+      endTime={endTime}
+      studio={studio}
     />,
   );
 }

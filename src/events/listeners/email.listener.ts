@@ -14,6 +14,7 @@ import {
   generateGuestStatusEmailHtml,
   generateInterviewEmailHtml,
   generateGuestReapprovalRequestEmailHtml,
+  generateGuestInterviewEmailHtml,
 } from "../../services/email.service";
 
 // ========================================
@@ -233,6 +234,65 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
       await LogService.markAsSent(log.id);
     } catch (error: any) {
       await LogService.markAsFailed(log.id, error);
+    }
+  } catch (error) {
+    console.error("Listener error (INTERVIEW_CREATED):", error);
+  }
+});
+
+eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
+  try {
+    const {
+      interviewId,
+      guestName,
+      guestEmail, // ← added
+      hostEmail,
+      hostName,
+      studioName,
+      interviewDate,
+      startTime,
+      endTime,
+      creatorId,
+    } = payload;
+
+    if (!hostEmail) return;
+
+    // ... existing host + cc email block, unchanged ...
+
+    // ========================================
+    // Guest notification — separate template, own log entry.
+    // Runs independently: failure here must never affect the
+    // host/cc send above, and vice versa.
+    // ========================================
+    if (guestEmail) {
+      const guestLog = await LogService.createLog({
+        event_type: "interview.guest_notified",
+        recipient_email: guestEmail,
+        status: "pending",
+        created_by: creatorId,
+      });
+
+      try {
+        const guestHtml = await generateGuestInterviewEmailHtml(
+          guestName,
+          hostName,
+          String(interviewDate ?? ""),
+          startTime ?? "",
+          endTime ?? "",
+          studioName,
+        );
+
+        await sendEmail({
+          to: guestEmail,
+          subject: `You're Confirmed - Real Story Time Interview`,
+          text: `Hi ${guestName}, you're confirmed for your interview with Real Story Time.`,
+          html: guestHtml,
+        });
+
+        await LogService.markAsSent(guestLog.id);
+      } catch (error: any) {
+        await LogService.markAsFailed(guestLog.id, error);
+      }
     }
   } catch (error) {
     console.error("Listener error (INTERVIEW_CREATED):", error);

@@ -400,6 +400,7 @@ class InterviewService {
         interviewId: interview.id,
         guestId: guest.id,
         guestName: guest.full_name,
+        guestEmail: guest.email,
         hostId: host.id,
         hostEmail: host.email,
         hostName: host.full_name,
