@@ -691,18 +691,23 @@ class InterviewService {
         // type — no settings_id scoping, just every row of this type.
         const ccSettings = await PermissionSettings.findAll({
           where: { permission_type: "published_interview_cc" },
-
           transaction,
         });
 
-        ccEmails = Array.from(
+        const ccUserIds = Array.from(
           new Set(
-            ccSettings
-              .flatMap((s) => s.users ?? [])
-              .map((u) => u.email)
-              .filter((e): e is string => Boolean(e)),
-          ),
+            ccSettings.flatMap((s) => s.user_ids ?? [])
+          )
         );
+
+        if (ccUserIds.length > 0) {
+          const ccUsers = await User.findAll({
+            where: { id: ccUserIds },
+            attributes: ["email"],
+            transaction,
+          });
+          ccEmails = ccUsers.map((u) => u.email).filter((e): e is string => Boolean(e));
+        }
       }
 
       await transaction.commit();
