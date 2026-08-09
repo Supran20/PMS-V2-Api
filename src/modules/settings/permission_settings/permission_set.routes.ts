@@ -6,12 +6,7 @@ import { authorize } from "../../../middleware/authorize.middleware";
 const router = Router();
 
 // CREATE
-router.post(
-  "/",
-  authenticate,
-  authorize("user.manage"),
-  PermissionSettingsController.create,
-);
+router.post("/", authenticate, PermissionSettingsController.create);
 
 // GET ALL
 router.get(
@@ -30,12 +25,7 @@ router.get(
 );
 
 // UPDATE
-router.put(
-  "/:id",
-  authenticate,
-  authorize("user.manage"),
-  PermissionSettingsController.update,
-);
+router.put("/:id", authenticate, PermissionSettingsController.update);
 
 // DELETE
 router.delete(

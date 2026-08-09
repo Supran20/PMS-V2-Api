@@ -21,6 +21,7 @@ import {
 } from "../../utils/visibility.util";
 import GuestReapprovalRequestService from "../guest_reapproval_request/guest_reapproval_request.service";
 import { maskGuestContacts } from "../../utils/guest-contact.util";
+import PermissionSettings from "../settings/permission_settings/permission_set.model";
 // Same shape-building helper used in guest.service.ts — kept local here
 // to avoid touching that file again. Consider moving to visibility.util.ts
 // as a shared export if you want a single source of truth.
@@ -71,6 +72,24 @@ async function findVisibleInterviewOrThrow(
   const interview = await Interview.findOne({ where, transaction, lock });
   if (!interview) throw new ApiError(404, "Interview not found");
   return interview;
+}
+
+// Resolves an interview's cc_user_ids into email addresses. Per-interview
+// CC, deliberately unrelated to PermissionSettings — replaces the old
+// global "published_interview_cc" lookup entirely.
+async function resolveCcEmails(
+  ccUserIds: string[] | null | undefined,
+  transaction: Transaction,
+): Promise<string[]> {
+  if (!ccUserIds?.length) return [];
+
+  const ccUsers = await User.findAll({
+    where: { id: { [Op.in]: ccUserIds } },
+    attributes: ["id", "email"],
+    transaction,
+  });
+
+  return ccUsers.map((u) => u.email).filter((e): e is string => Boolean(e));
 }
 
 class InterviewService {
@@ -394,12 +413,15 @@ class InterviewService {
         throw new ApiError(400, "Invalid host, guest or studio");
       }
 
+      const ccEmails = await resolveCcEmails(data.cc_user_ids, transaction); // ← new
+
       await transaction.commit();
 
       eventBus.emit(EVENTS.INTERVIEW_CREATED, {
         interviewId: interview.id,
         guestId: guest.id,
         guestName: guest.full_name,
+        guestEmail: guest.email,
         hostId: host.id,
         hostEmail: host.email,
         hostName: host.full_name,
@@ -407,6 +429,7 @@ class InterviewService {
         interviewDate: data.interview_date,
         startTime: data.start_time,
         endTime: end_time,
+        ccEmails, // ← new
         creatorId,
       });
 
@@ -417,10 +440,11 @@ class InterviewService {
     }
   }
 
+
   //--------------------------------
   // GET ALL
   //--------------------------------
-  static async getAll(requester: any): Promise<Interview[]> {
+  static async getAll(requester: any): Promise<any[]> {
     const where = buildInterviewVisibilityWhere({}, requester);
 
     const interviews = await Interview.findAll({
@@ -439,7 +463,6 @@ class InterviewService {
             "created_by",
             "host_id",
           ],
-
           include: [
             {
               model: Media,
@@ -452,7 +475,6 @@ class InterviewService {
           model: User,
           as: "host",
           attributes: ["id", "full_name", "email"],
-
           include: [
             {
               model: Media,
@@ -475,18 +497,51 @@ class InterviewService {
 
     await maskGuestContacts(guests, requester);
 
-    return interviews;
+    // 🔥 Attach cc user details — cc_user_ids is a plain array column,
+    // not a Sequelize association, so resolve it per-row.
+    return await Promise.all(
+      interviews.map(async (interview) => {
+        const ccUsers = await User.findAll({
+          where: { id: interview.cc_user_ids ?? [] },
+          attributes: ["id", "full_name", "email"],
+        });
+
+        return {
+          ...interview.toJSON(),
+          ccUsers,
+        };
+      }),
+    );
   }
 
   //--------------------------------
   // GET BY ID
   //--------------------------------
-  static async getById(id: string, requester: any): Promise<Interview> {
+  static async getById(id: string, requester: any): Promise<any> {
     const where = buildInterviewVisibilityWhere({ id }, requester);
 
-    const interview = await Interview.findOne({ where });
-    if (!interview) throw new ApiError(404, "Interview not found");
-    return interview;
+    const interview = await Interview.findOne({
+      where,
+      include: [
+        { model: Guest, as: "guest" },
+        { model: User, as: "host" },
+        { model: Studio, as: "studio" },
+      ],
+    });
+
+    if (!interview) {
+      throw new ApiError(404, "Interview not found");
+    }
+
+    const ccUsers = await User.findAll({
+      where: { id: interview.cc_user_ids ?? [] },
+      attributes: ["id", "full_name", "email"],
+    });
+
+    return {
+      ...interview.toJSON(),
+      ccUsers,
+    };
   }
 
   //--------------------------------
@@ -586,6 +641,9 @@ class InterviewService {
   //--------------------------------
   // UPDATE
   //--------------------------------
+  //--------------------------------
+  // UPDATE
+  //--------------------------------
   static async updateInterview(
     id: string,
     data: Partial<InterviewAttributes>,
@@ -599,6 +657,8 @@ class InterviewService {
         requester,
         transaction,
       );
+
+      const wasPublished = interview.status === "published";
 
       if (
         interview.status === "published" &&
@@ -665,8 +725,44 @@ class InterviewService {
         { transaction },
       );
 
+      // Fetch guest, host and studio details — needed only when this
+      // update is the transition into "published", mirroring how
+      // createInterview fetches them before emitting INTERVIEW_CREATED.
+      const justPublished = interview.status === "published" && !wasPublished;
+
+      let guest: Guest | null = null;
+      let host: User | null = null;
+      let studio: Studio | null = null;
+      let ccEmails: string[] = [];
+
+      if (justPublished) {
+        guest = await Guest.findByPk(interview.guest_id, { transaction });
+        host = await User.findByPk(interview.host_id, { transaction });
+        studio = await Studio.findByPk(interview.studio_id, { transaction });
+
+        // Per-interview CC — reads straight off this interview's own
+        // cc_user_ids, unrelated to PermissionSettings.
+        ccEmails = await resolveCcEmails(interview.cc_user_ids, transaction);
+      }
+
       await transaction.commit();
       await interview.reload();
+
+      if (justPublished && guest && host && studio) {
+        eventBus.emit(EVENTS.INTERVIEW_PUBLISHED, {
+          interviewId: interview.id,
+          guestId: guest.id,
+          guestName: guest.full_name,
+          guestEmail: guest.email,
+          hostId: host.id,
+          hostName: host.full_name,
+          studioName: studio.studio_name,
+          episode: interview.episode,
+          youtubeLink: interview.youtube_link,
+          ccEmails,
+          triggeredBy: requester.id,
+        });
+      }
 
       return interview;
     } catch (error) {
