@@ -169,96 +169,56 @@ eventBus.on(EVENTS.GUEST_REJECTED, async (payload: any) => {
 });
 
 // ========================================
-// INTERVIEW CREATED → Notify Host
+// INTERVIEW CREATED → Notify Host (+CC) and Guest
 // ========================================
 eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
   try {
     const {
-      interviewId,
       guestName,
+      guestEmail,
       hostEmail,
       hostName,
       studioName,
       interviewDate,
       startTime,
       endTime,
+      ccEmails, // ← resolved per-interview in interview.service.ts (cc_user_ids)
       creatorId,
     } = payload;
 
-    if (!hostEmail) return;
-
-    // 🔹 Create log (pending)
-    const log = await LogService.createLog({
-      event_type: "interview.created",
-      recipient_email: hostEmail,
-      status: "pending",
-      created_by: creatorId,
-    });
-
-    try {
-      const html = await generateInterviewEmailHtml(
-        "New Interview Assigned",
-        hostName,
-        guestName,
-        String(interviewDate ?? ""),
-        startTime ?? "",
-        endTime ?? "",
-        studioName,
-      );
-
-      const permission = await PermissionSettings.findOne({
-        where: { permission_type: "interview_cc" },
+    // Host + CC notification
+    if (hostEmail) {
+      const log = await LogService.createLog({
+        event_type: "interview.created",
+        recipient_email: hostEmail,
+        status: "pending",
+        created_by: creatorId,
       });
 
-      const ccUsers =
-        permission &&
-        Array.isArray(permission.user_ids) &&
-        permission.user_ids.length > 0
-          ? await User.findAll({
-              where: { id: permission.user_ids },
-              attributes: ["email"],
-            })
-          : [];
+      try {
+        const html = await generateInterviewEmailHtml(
+          "New Interview Assigned",
+          hostName,
+          guestName,
+          String(interviewDate ?? ""),
+          startTime ?? "",
+          endTime ?? "",
+          studioName,
+        );
 
-      const ccEmails = ccUsers.map((u) => u.email).filter(Boolean);
+        await sendEmail({
+          to: hostEmail,
+          subject: `New Interview Assigned - ${guestName}`,
+          text: `You have a new interview scheduled with ${guestName}`,
+          html,
+          cc: ccEmails,
+        });
 
-      await sendEmail({
-        to: hostEmail,
-        subject: `New Interview Assigned - ${guestName}`,
-        text: `You have a new interview scheduled with ${guestName}`,
-        html,
-        cc: ccEmails,
-        // cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
-        // replyTo: "harikrishna@broadwayinfosys.com",
-      });
-
-      await LogService.markAsSent(log.id);
-    } catch (error: any) {
-      await LogService.markAsFailed(log.id, error);
+        await LogService.markAsSent(log.id);
+      } catch (error: any) {
+        await LogService.markAsFailed(log.id, error);
+      }
     }
-  } catch (error) {
-    console.error("Listener error (INTERVIEW_CREATED):", error);
-  }
-});
-
-eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
-  try {
-    const {
-      interviewId,
-      guestName,
-      guestEmail, // ← added
-      hostEmail,
-      hostName,
-      studioName,
-      interviewDate,
-      startTime,
-      endTime,
-      creatorId,
-    } = payload;
-
-    if (!hostEmail) return;
-
-    // ... existing host + cc email block, unchanged ...
 
     // ========================================
     // Guest notification — separate template, own log entry.
@@ -312,7 +272,7 @@ eventBus.on(EVENTS.INTERVIEW_PUBLISHED, async (payload: any) => {
       studioName,
       episode,
       youtubeLink,
-      ccEmails,
+      ccEmails, // ← resolved per-interview in interview.service.ts (cc_user_ids)
       triggeredBy,
     } = payload;
 
@@ -346,7 +306,7 @@ eventBus.on(EVENTS.INTERVIEW_PUBLISHED, async (payload: any) => {
       }
     }
 
-    // Internal team CC notification — independent of the guest send above
+    // Internal CC notification — independent of the guest send above
     if (ccEmails?.length) {
       const ccLog = await LogService.createLog({
         event_type: "interview.published_cc_notified",

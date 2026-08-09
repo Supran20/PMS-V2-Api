@@ -43,6 +43,10 @@ export const createInterviewSchema = z.object({
   google_drive_link: z.string().url().optional().nullable(),
   youtube_link: z.string().url().optional().nullable(),
   youtube_title: z.string().optional().nullable(),
+  cc_user_ids: z
+    .array(z.string().uuid("Invalid user ID in CC list"))
+    .optional()
+    .nullable(),
 });
 
 export const updateInterviewSchema = z.object({
@@ -85,4 +89,9 @@ export const updateInterviewSchema = z.object({
   google_drive_link: z.string().url().optional().nullable(),
   youtube_link: z.string().url().optional().nullable(),
   youtube_title: z.string().optional().nullable(),
+
+  cc_user_ids: z
+    .array(z.string().uuid("Invalid user ID in CC list"))
+    .optional()
+    .nullable(),
 });

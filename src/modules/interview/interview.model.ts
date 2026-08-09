@@ -34,6 +34,8 @@ class Interview
   declare youtube_link: string | null;
   declare youtube_title: string | null;
 
+  declare cc_user_ids: string[] | null;
+
   declare created_by: string | null;
   declare updated_by: string | null;
 
@@ -142,6 +144,12 @@ Interview.init(
     youtube_title: {
       type: DataTypes.STRING,
       allowNull: true,
+    },
+
+    cc_user_ids: {
+      type: DataTypes.ARRAY(DataTypes.UUID),
+      allowNull: true,
+      defaultValue: [],
     },
 
     created_by: {

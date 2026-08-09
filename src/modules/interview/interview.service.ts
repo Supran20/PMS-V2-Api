@@ -74,6 +74,24 @@ async function findVisibleInterviewOrThrow(
   return interview;
 }
 
+// Resolves an interview's cc_user_ids into email addresses. Per-interview
+// CC, deliberately unrelated to PermissionSettings — replaces the old
+// global "published_interview_cc" lookup entirely.
+async function resolveCcEmails(
+  ccUserIds: string[] | null | undefined,
+  transaction: Transaction,
+): Promise<string[]> {
+  if (!ccUserIds?.length) return [];
+
+  const ccUsers = await User.findAll({
+    where: { id: { [Op.in]: ccUserIds } },
+    attributes: ["id", "email"],
+    transaction,
+  });
+
+  return ccUsers.map((u) => u.email).filter((e): e is string => Boolean(e));
+}
+
 class InterviewService {
   //--------------------------------
   // Helper: Convert date + time to JS Date
@@ -395,6 +413,8 @@ class InterviewService {
         throw new ApiError(400, "Invalid host, guest or studio");
       }
 
+      const ccEmails = await resolveCcEmails(data.cc_user_ids, transaction); // ← new
+
       await transaction.commit();
 
       eventBus.emit(EVENTS.INTERVIEW_CREATED, {
@@ -409,6 +429,7 @@ class InterviewService {
         interviewDate: data.interview_date,
         startTime: data.start_time,
         endTime: end_time,
+        ccEmails, // ← new
         creatorId,
       });
 
@@ -419,10 +440,11 @@ class InterviewService {
     }
   }
 
+
   //--------------------------------
   // GET ALL
   //--------------------------------
-  static async getAll(requester: any): Promise<Interview[]> {
+  static async getAll(requester: any): Promise<any[]> {
     const where = buildInterviewVisibilityWhere({}, requester);
 
     const interviews = await Interview.findAll({
@@ -441,7 +463,6 @@ class InterviewService {
             "created_by",
             "host_id",
           ],
-
           include: [
             {
               model: Media,
@@ -454,7 +475,6 @@ class InterviewService {
           model: User,
           as: "host",
           attributes: ["id", "full_name", "email"],
-
           include: [
             {
               model: Media,
@@ -477,18 +497,51 @@ class InterviewService {
 
     await maskGuestContacts(guests, requester);
 
-    return interviews;
+    // 🔥 Attach cc user details — cc_user_ids is a plain array column,
+    // not a Sequelize association, so resolve it per-row.
+    return await Promise.all(
+      interviews.map(async (interview) => {
+        const ccUsers = await User.findAll({
+          where: { id: interview.cc_user_ids ?? [] },
+          attributes: ["id", "full_name", "email"],
+        });
+
+        return {
+          ...interview.toJSON(),
+          ccUsers,
+        };
+      }),
+    );
   }
 
   //--------------------------------
   // GET BY ID
   //--------------------------------
-  static async getById(id: string, requester: any): Promise<Interview> {
+  static async getById(id: string, requester: any): Promise<any> {
     const where = buildInterviewVisibilityWhere({ id }, requester);
 
-    const interview = await Interview.findOne({ where });
-    if (!interview) throw new ApiError(404, "Interview not found");
-    return interview;
+    const interview = await Interview.findOne({
+      where,
+      include: [
+        { model: Guest, as: "guest" },
+        { model: User, as: "host" },
+        { model: Studio, as: "studio" },
+      ],
+    });
+
+    if (!interview) {
+      throw new ApiError(404, "Interview not found");
+    }
+
+    const ccUsers = await User.findAll({
+      where: { id: interview.cc_user_ids ?? [] },
+      attributes: ["id", "full_name", "email"],
+    });
+
+    return {
+      ...interview.toJSON(),
+      ccUsers,
+    };
   }
 
   //--------------------------------
@@ -687,27 +740,9 @@ class InterviewService {
         host = await User.findByPk(interview.host_id, { transaction });
         studio = await Studio.findByPk(interview.studio_id, { transaction });
 
-        // Same lookup shape as the existing `interview_cc` permission
-        // type — no settings_id scoping, just every row of this type.
-        const ccSettings = await PermissionSettings.findAll({
-          where: { permission_type: "published_interview_cc" },
-          transaction,
-        });
-
-        const ccUserIds = Array.from(
-          new Set(
-            ccSettings.flatMap((s) => s.user_ids ?? [])
-          )
-        );
-
-        if (ccUserIds.length > 0) {
-          const ccUsers = await User.findAll({
-            where: { id: ccUserIds },
-            attributes: ["email"],
-            transaction,
-          });
-          ccEmails = ccUsers.map((u) => u.email).filter((e): e is string => Boolean(e));
-        }
+        // Per-interview CC — reads straight off this interview's own
+        // cc_user_ids, unrelated to PermissionSettings.
+        ccEmails = await resolveCcEmails(interview.cc_user_ids, transaction);
       }
 
       await transaction.commit();
