@@ -15,6 +15,7 @@ import {
   generateInterviewEmailHtml,
   generateGuestReapprovalRequestEmailHtml,
   generateGuestInterviewEmailHtml,
+  generateGuestPublishedEmailHtml,
 } from "../../services/email.service";
 
 // ========================================
@@ -296,6 +297,81 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
     }
   } catch (error) {
     console.error("Listener error (INTERVIEW_CREATED):", error);
+  }
+});
+
+// ========================================
+// INTERVIEW PUBLISHED → Notify Guest and CC
+// ========================================
+eventBus.on(EVENTS.INTERVIEW_PUBLISHED, async (payload: any) => {
+  try {
+    const {
+      guestName,
+      guestEmail,
+      hostName,
+      studioName,
+      episode,
+      youtubeLink,
+      ccEmails,
+      triggeredBy,
+    } = payload;
+
+    // Guest notification
+    if (guestEmail) {
+      const guestLog = await LogService.createLog({
+        event_type: "interview.guest_published_notified",
+        recipient_email: guestEmail,
+        status: "pending",
+        created_by: triggeredBy,
+      });
+
+      try {
+        const guestHtml = await generateGuestPublishedEmailHtml(
+          guestName,
+          hostName,
+          episode,
+          youtubeLink,
+        );
+
+        await sendEmail({
+          to: guestEmail,
+          subject: `Your Episode Is Live — Real Story Time`,
+          text: `Hi ${guestName}, your interview with Real Story Time has been published. Please take a moment to review it.`,
+          html: guestHtml,
+        });
+
+        await LogService.markAsSent(guestLog.id);
+      } catch (error: any) {
+        await LogService.markAsFailed(guestLog.id, error);
+      }
+    }
+
+    // Internal team CC notification — independent of the guest send above
+    if (ccEmails?.length) {
+      const ccLog = await LogService.createLog({
+        event_type: "interview.published_cc_notified",
+        recipient_email: ccEmails.join(", "),
+        status: "pending",
+        created_by: triggeredBy,
+      });
+
+      try {
+        await sendEmail({
+          to: ccEmails[0],
+          cc: ccEmails.slice(1),
+          subject: `Episode Published${episode ? ` — Episode ${episode}` : ""}`,
+          text: `${guestName}'s interview with ${hostName} (Studio: ${studioName}) has been published.${
+            youtubeLink ? ` Link: ${youtubeLink}` : ""
+          }`,
+        });
+
+        await LogService.markAsSent(ccLog.id);
+      } catch (error: any) {
+        await LogService.markAsFailed(ccLog.id, error);
+      }
+    }
+  } catch (error) {
+    console.error("Listener error (INTERVIEW_PUBLISHED):", error);
   }
 });
 

@@ -6,4 +6,5 @@ export const EVENTS = {
   GUEST_REAPPROVAL_REJECTED: "guest.reapproval_rejected",
   GUEST_REJECTED: "guest.rejected",
   INTERVIEW_CREATED: "interview.created",
+  INTERVIEW_PUBLISHED: "interview.published",
 };

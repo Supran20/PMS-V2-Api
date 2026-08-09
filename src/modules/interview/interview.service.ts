@@ -21,6 +21,7 @@ import {
 } from "../../utils/visibility.util";
 import GuestReapprovalRequestService from "../guest_reapproval_request/guest_reapproval_request.service";
 import { maskGuestContacts } from "../../utils/guest-contact.util";
+import PermissionSettings from "../settings/permission_settings/permission_set.model";
 // Same shape-building helper used in guest.service.ts — kept local here
 // to avoid touching that file again. Consider moving to visibility.util.ts
 // as a shared export if you want a single source of truth.
@@ -587,6 +588,9 @@ class InterviewService {
   //--------------------------------
   // UPDATE
   //--------------------------------
+  //--------------------------------
+  // UPDATE
+  //--------------------------------
   static async updateInterview(
     id: string,
     data: Partial<InterviewAttributes>,
@@ -600,6 +604,8 @@ class InterviewService {
         requester,
         transaction,
       );
+
+      const wasPublished = interview.status === "published";
 
       if (
         interview.status === "published" &&
@@ -666,8 +672,57 @@ class InterviewService {
         { transaction },
       );
 
+      // Fetch guest, host and studio details — needed only when this
+      // update is the transition into "published", mirroring how
+      // createInterview fetches them before emitting INTERVIEW_CREATED.
+      const justPublished = interview.status === "published" && !wasPublished;
+
+      let guest: Guest | null = null;
+      let host: User | null = null;
+      let studio: Studio | null = null;
+      let ccEmails: string[] = [];
+
+      if (justPublished) {
+        guest = await Guest.findByPk(interview.guest_id, { transaction });
+        host = await User.findByPk(interview.host_id, { transaction });
+        studio = await Studio.findByPk(interview.studio_id, { transaction });
+
+        // Same lookup shape as the existing `interview_cc` permission
+        // type — no settings_id scoping, just every row of this type.
+        const ccSettings = await PermissionSettings.findAll({
+          where: { permission_type: "published_interview_cc" },
+
+          transaction,
+        });
+
+        ccEmails = Array.from(
+          new Set(
+            ccSettings
+              .flatMap((s) => s.users ?? [])
+              .map((u) => u.email)
+              .filter((e): e is string => Boolean(e)),
+          ),
+        );
+      }
+
       await transaction.commit();
       await interview.reload();
+
+      if (justPublished && guest && host && studio) {
+        eventBus.emit(EVENTS.INTERVIEW_PUBLISHED, {
+          interviewId: interview.id,
+          guestId: guest.id,
+          guestName: guest.full_name,
+          guestEmail: guest.email,
+          hostId: host.id,
+          hostName: host.full_name,
+          studioName: studio.studio_name,
+          episode: interview.episode,
+          youtubeLink: interview.youtube_link,
+          ccEmails,
+          triggeredBy: requester.id,
+        });
+      }
 
       return interview;
     } catch (error) {
