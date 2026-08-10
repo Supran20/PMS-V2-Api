@@ -35,6 +35,7 @@ class Interview
   declare youtube_title: string | null;
 
   declare cc_user_ids: string[] | null;
+  declare bcc_user_ids: string[] | null;
 
   declare created_by: string | null;
   declare updated_by: string | null;
@@ -147,6 +148,12 @@ Interview.init(
     },
 
     cc_user_ids: {
+      type: DataTypes.ARRAY(DataTypes.UUID),
+      allowNull: true,
+      defaultValue: [],
+    },
+
+    bcc_user_ids: {
       type: DataTypes.ARRAY(DataTypes.UUID),
       allowNull: true,
       defaultValue: [],

@@ -92,6 +92,21 @@ async function resolveCcEmails(
   return ccUsers.map((u) => u.email).filter((e): e is string => Boolean(e));
 }
 
+async function resolveBccEmails(
+  bccUserIds: string[] | null | undefined,
+  transaction: Transaction,
+): Promise<string[]> {
+  if (!bccUserIds?.length) return [];
+
+  const bccUsers = await User.findAll({
+    where: { id: { [Op.in]: bccUserIds } },
+    attributes: ["id", "email"],
+    transaction,
+  });
+
+  return bccUsers.map((u) => u.email).filter((e): e is string => Boolean(e));
+}
+
 class InterviewService {
   //--------------------------------
   // Helper: Convert date + time to JS Date
@@ -414,6 +429,7 @@ class InterviewService {
       }
 
       const ccEmails = await resolveCcEmails(data.cc_user_ids, transaction); // ← new
+      const bccEmails = await resolveBccEmails(data.bcc_user_ids, transaction);
 
       await transaction.commit();
 
@@ -430,6 +446,7 @@ class InterviewService {
         startTime: data.start_time,
         endTime: end_time,
         ccEmails, // ← new
+        bccEmails,
         creatorId,
       });
 
@@ -506,9 +523,15 @@ class InterviewService {
           attributes: ["id", "full_name", "email"],
         });
 
+        const bccUsers = await User.findAll({
+          where: { id: interview.bcc_user_ids ?? [] },
+          attributes: ["id", "full_name", "email"],
+        });
+
         return {
           ...interview.toJSON(),
           ccUsers,
+          bccUsers,
         };
       }),
     );
@@ -538,9 +561,15 @@ class InterviewService {
       attributes: ["id", "full_name", "email"],
     });
 
+    const bccUsers = await User.findAll({
+      where: { id: interview.bcc_user_ids ?? [] },
+      attributes: ["id", "full_name", "email"],
+    });
+
     return {
       ...interview.toJSON(),
       ccUsers,
+      bccUsers,
     };
   }
 
@@ -734,6 +763,7 @@ class InterviewService {
       let host: User | null = null;
       let studio: Studio | null = null;
       let ccEmails: string[] = [];
+      let bccEmails: string[] = [];
 
       if (justPublished) {
         guest = await Guest.findByPk(interview.guest_id, { transaction });
@@ -743,6 +773,7 @@ class InterviewService {
         // Per-interview CC — reads straight off this interview's own
         // cc_user_ids, unrelated to PermissionSettings.
         ccEmails = await resolveCcEmails(interview.cc_user_ids, transaction);
+        bccEmails = await resolveBccEmails(interview.bcc_user_ids, transaction);
       }
 
       await transaction.commit();
@@ -760,6 +791,7 @@ class InterviewService {
           episode: interview.episode,
           youtubeLink: interview.youtube_link,
           ccEmails,
+          bccEmails,
           triggeredBy: requester.id,
         });
       }
