@@ -124,7 +124,7 @@ export default function GuestPublishedEmail({
                       {/* Play button overlay — table-based so it renders
                           correctly in Gmail/Outlook, which strip
                           position: absolute on divs in many contexts. */}
-                      <table
+                      {/* <table
                         role="presentation"
                         width="100%"
                         cellPadding="0"
@@ -177,7 +177,7 @@ export default function GuestPublishedEmail({
                             </td>
                           </tr>
                         </tbody>
-                      </table>
+                      </table> */}
                     </Link>
 
                     <Text className="text-sm text-gray-500 mt-3 mb-2">
