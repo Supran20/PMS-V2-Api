@@ -24,6 +24,7 @@ export interface InterviewAttributes {
   youtube_title?: string | null;
 
   cc_user_ids?: string[] | null;
+  bcc_user_ids?: string[] | null;
 
   created_by?: string | null;
   updated_by?: string | null;

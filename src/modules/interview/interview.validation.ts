@@ -47,6 +47,10 @@ export const createInterviewSchema = z.object({
     .array(z.string().uuid("Invalid user ID in CC list"))
     .optional()
     .nullable(),
+  bcc_user_ids: z
+    .array(z.string().uuid("Invalid user ID in BCC list"))
+    .optional()
+    .nullable(),
 });
 
 export const updateInterviewSchema = z.object({
@@ -92,6 +96,11 @@ export const updateInterviewSchema = z.object({
 
   cc_user_ids: z
     .array(z.string().uuid("Invalid user ID in CC list"))
+    .optional()
+    .nullable(),
+
+  bcc_user_ids: z
+    .array(z.string().uuid("Invalid user ID in BCC list"))
     .optional()
     .nullable(),
 });
