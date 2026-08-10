@@ -183,6 +183,7 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
       startTime,
       endTime,
       ccEmails, // ← resolved per-interview in interview.service.ts (cc_user_ids)
+      bccEmails,
       creatorId,
     } = payload;
 
@@ -212,6 +213,7 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
           text: `You have a new interview scheduled with ${guestName}`,
           html,
           cc: ccEmails,
+          bcc: bccEmails,
         });
 
         await LogService.markAsSent(log.id);
@@ -273,6 +275,7 @@ eventBus.on(EVENTS.INTERVIEW_PUBLISHED, async (payload: any) => {
       episode,
       youtubeLink,
       ccEmails, // ← resolved per-interview in interview.service.ts (cc_user_ids)
+      bccEmails,
       triggeredBy,
     } = payload;
 
@@ -307,18 +310,20 @@ eventBus.on(EVENTS.INTERVIEW_PUBLISHED, async (payload: any) => {
     }
 
     // Internal CC notification — independent of the guest send above
-    if (ccEmails?.length) {
+    if (ccEmails?.length || bccEmails?.length) {
+      const allInternalEmails = [...(ccEmails || []), ...(bccEmails || [])];
       const ccLog = await LogService.createLog({
         event_type: "interview.published_cc_notified",
-        recipient_email: ccEmails.join(", "),
+        recipient_email: allInternalEmails.join(", "),
         status: "pending",
         created_by: triggeredBy,
       });
 
       try {
         await sendEmail({
-          to: ccEmails[0],
-          cc: ccEmails.slice(1),
+          to: ccEmails?.length ? ccEmails[0] : bccEmails[0],
+          cc: ccEmails?.length ? ccEmails.slice(1) : undefined,
+          bcc: ccEmails?.length ? bccEmails : bccEmails.slice(1),
           subject: `Episode Published${episode ? ` — Episode ${episode}` : ""}`,
           text: `${guestName}'s interview with ${hostName} (Studio: ${studioName}) has been published.${
             youtubeLink ? ` Link: ${youtubeLink}` : ""
