@@ -11,18 +11,18 @@ const router = Router();
 router.post(
   "/",
   authenticate,
-  authorize("guest.create"),
+  // authorize("guest.create"),
   uploadMedia,
   validate(createGuestSchema),
   GuestController.create,
 );
 
-router.get("/", authenticate, authorize("guest.view"), GuestController.getAll);
+router.get("/", authenticate, GuestController.getAll);
 
 router.get(
   "/slug/:slug",
   authenticate,
-  authorize("guest.view"),
+  // authorize("guest.view"),
   GuestController.getBySlug,
 );
 router.get("/:id", GuestController.getById);
@@ -53,7 +53,7 @@ router.put(
 router.delete(
   "/:id",
   authenticate,
-  authorize("guest.delete"),
+  // authorize("guest.delete"),
   GuestController.delete,
 );
 

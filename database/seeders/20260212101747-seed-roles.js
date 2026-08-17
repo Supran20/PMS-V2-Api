@@ -7,8 +7,15 @@ module.exports = {
     await queryInterface.bulkInsert("roles", [
       {
         id: uuidv4(),
+        role_name: "Super Admin",
+        description: "Full admin privileges",
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        id: uuidv4(),
         role_name: "Admin",
-        description: "Full access",
+        description: "Admin panel access",
         created_at: new Date(),
         updated_at: new Date(),
       },

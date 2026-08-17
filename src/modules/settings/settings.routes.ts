@@ -9,7 +9,7 @@ const router = Router();
 router.post(
   "/",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   SettingsController.create,
 );
 
@@ -17,7 +17,7 @@ router.post(
 router.get(
   "/",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   SettingsController.getAll,
 );
 
@@ -25,7 +25,7 @@ router.get(
 router.get(
   "/:id",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   SettingsController.getById,
 );
 
@@ -33,7 +33,7 @@ router.get(
 router.get(
   "/type/:type",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   SettingsController.getByType,
 );
 
@@ -41,7 +41,7 @@ router.get(
 router.put(
   "/:id",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   SettingsController.update,
 );
 
@@ -49,7 +49,7 @@ router.put(
 router.delete(
   "/:id",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   SettingsController.delete,
 );
 
