@@ -4,117 +4,22 @@ import Guest from "./guest.model";
 import Interview from "../interview/interview.model";
 import User from "../users/user.model";
 import Role from "../roles/role.model";
-import { sendEmail } from "../../services/email.service";
 import ApiError from "../../middleware/error-handlers/ApiError";
 import { GuestAttributes } from "./guest.interface";
 import Media from "../media/media.model";
 import GuestNote from "../guest_note/guest_note.model";
-import { generateGuestApprovalEmailHtml } from "../../services/email.service";
-import { generateGuestStatusEmailHtml } from "../../services/email.service";
 import { generateUniqueSlug } from "../../utils/slugify";
 import PermissionSettings from "../settings/permission_settings/permission_set.model";
 import eventBus from "../../events/eventBus";
 import { EVENTS } from "../../events/events.constants";
 import Tags from "../tags/tags.model";
-import {
-  getVisibilityFilter,
-  mergeVisibilityFilter,
-  VisibilitySubject,
-} from "../../utils/visibility.util";
 import { fn, col, where as sequelizeWhere } from "sequelize";
 import GuestReapprovalRequestService from "../guest_reapproval_request/guest_reapproval_request.service";
-import {
-  maskGuestContact,
-  maskGuestContacts,
-} from "../../utils/guest-contact.util";
-
-// Builds the VisibilitySubject shape from a req.user instance.
-// Centralized here so both getAllGuests/getGuestById/getGuestBySlug
-// (and interview.service.ts) build it the same way.
-function toVisibilitySubject(requester: any): VisibilitySubject {
-  return {
-    id: requester?.id,
-    role_name: requester?.roles?.[0]?.role_name ?? null,
-    created_at: requester?.created_at,
-    visibility_mode: requester?.visibility_mode ?? "default",
-    visibility_start_date: requester?.visibility_start_date ?? null,
-    visibility_end_date: requester?.visibility_end_date ?? null,
-  };
-}
-
-// For a Host, resolves the guest ids they're indirectly assigned to via
-// an Interview (i.e. guests they've interviewed but don't directly own
-// via Guest.host_id). OR'd into the visibility filter as a bonus grant —
-// never a restriction — alongside direct host_id assignment and the
-// time-based window.
-async function getHostAssignedGuestIds(
-  requesterId: string,
-  transaction?: Transaction,
-): Promise<string[]> {
-  const hostInterviews = await Interview.findAll({
-    where: { host_id: requesterId },
-    attributes: ["guest_id"],
-    transaction,
-  });
-  return hostInterviews.map((i: any) => i.guest_id);
-}
-
-// Builds the fully merged where-clause for guest queries, honoring:
-//  - time-based visibility (default/range/all, per requester.visibility_mode)
-//  - direct assignment (Guest.host_id === requester.id), Host only
-//  - indirect assignment (guest ids reached via Interview), Host only
-// Admin and "all"-mode Host/Staff get back the original baseWhere
-// untouched, since getVisibilityFilter returns null for them.
-async function buildGuestVisibilityWhere(
-  baseWhere: Record<string, any>,
-  requester: any,
-  transaction?: Transaction,
-): Promise<Record<string, any>> {
-  const isHost = requester?.roles?.[0]?.role_name === "Host";
-
-  let assignmentIds: string[] | undefined;
-  if (isHost) {
-    assignmentIds = await getHostAssignedGuestIds(requester.id, transaction);
-  }
-
-  const visibilityFilter = getVisibilityFilter(toVisibilitySubject(requester), {
-    assignmentField: "host_id",
-    assignmentIds,
-  });
-
-  return mergeVisibilityFilter(baseWhere, visibilityFilter);
-}
-
-// Shared helper: fetch a single guest by an arbitrary where-clause,
-// honoring the requester's visibility settings, or throw 404.
-async function findVisibleGuestOrThrow(
-  baseWhere: Record<string, any>,
-  requester: any,
-  transaction?: Transaction,
-  include?: any[],
-): Promise<Guest> {
-  const where = await buildGuestVisibilityWhere(
-    baseWhere,
-    requester,
-    transaction,
-  );
-
-  const guest = await Guest.findOne({ where, transaction, include });
-  if (!guest) throw new ApiError(404, "Guest not found");
-  return guest;
-}
 
 class GuestService {
   //--------------------------------
   // CHECK Guest Exists (unrestricted — global identity check)
   //--------------------------------
-  // Deliberately bypasses visibility.util entirely, same reasoning as
-  // getEpisodeMeta: guest identity uniqueness is a global fact, not
-  // visibility-scoped content. Matches case-insensitively on email and
-  // digits-only on phone (via DB-side regexp_replace, since stored
-  // phone values may carry inconsistent formatting). Callers must only
-  // ever surface { id } outward from this — never the full row — to a
-  // requester who may not otherwise have visibility into this guest.
   static async checkGuestExists(
     identity: { email?: string | null; phone?: string | null },
     transaction?: Transaction,
@@ -330,11 +235,8 @@ class GuestService {
   //--------------------------------
   // GET All Guests
   //--------------------------------
-  static async getAllGuests(requester: any): Promise<any[]> {
-    const where = await buildGuestVisibilityWhere({}, requester);
-
+  static async getAllGuests(requester?: any): Promise<any[]> {
     const guests = await Guest.findAll({
-      where,
       order: [["created_at", "DESC"]],
       include: [
         {
@@ -360,8 +262,6 @@ class GuestService {
       ],
     });
 
-    await maskGuestContacts(guests, requester);
-
     // 🔥 manually attach tags
     const guestsWithTags = await Promise.all(
       guests.map(async (guest) => {
@@ -385,18 +285,12 @@ class GuestService {
   //--------------------------------
   // GET Guest by ID
   //--------------------------------
-  static async getGuestById(id: string, requester: any): Promise<Guest> {
-    const where = await buildGuestVisibilityWhere({ id }, requester);
-
-    const guest = await Guest.findOne({ where });
+  static async getGuestById(id: string, requester?: any): Promise<Guest> {
+    const guest = await Guest.findByPk(id);
 
     if (!guest) {
-      // Same 404 whether it doesn't exist or is just outside the
-      // requester's visibility settings — don't leak existence.
       throw new ApiError(404, "Guest not found");
     }
-
-    await maskGuestContact(guest, requester);
 
     return guest;
   }
@@ -404,11 +298,9 @@ class GuestService {
   //--------------------------------
   // GET Guest by Slug
   //--------------------------------
-  static async getGuestBySlug(slug: string, requester: any): Promise<any> {
-    const where = await buildGuestVisibilityWhere({ slug }, requester);
-
+  static async getGuestBySlug(slug: string, requester?: any): Promise<any> {
     const guest = await Guest.findOne({
-      where,
+      where: { slug },
       include: [
         {
           model: Media,
@@ -435,8 +327,6 @@ class GuestService {
 
     if (!guest) throw new ApiError(404, "Guest not found");
 
-    await maskGuestContact(guest, requester);
-
     const tags = await Tags.findAll({
       where: { id: guest.tag_ids || [] },
       attributes: ["id", "tag_name", "slug"],
@@ -452,9 +342,15 @@ class GuestService {
   // APPROVE Guest
   //--------------------------------
   static async approveGuest(id: string, approver: any): Promise<Guest> {
-    const guest = await findVisibleGuestOrThrow({ id }, approver, undefined, [
-      { model: User, as: "host", attributes: ["full_name", "email"] },
-    ]);
+    const guest = await Guest.findByPk(id, {
+      include: [
+        { model: User, as: "host", attributes: ["full_name", "email"] },
+      ],
+    });
+
+    if (!guest) {
+      throw new ApiError(404, "Guest not found");
+    }
 
     if (guest.approved) {
       throw new ApiError(400, "Guest already approved");
@@ -483,9 +379,15 @@ class GuestService {
   // Reject Guest
   //--------------------------------
   static async rejectGuest(id: string, approver: any): Promise<Guest> {
-    const guest = await findVisibleGuestOrThrow({ id }, approver, undefined, [
-      { model: User, as: "host", attributes: ["full_name", "email"] },
-    ]);
+    const guest = await Guest.findByPk(id, {
+      include: [
+        { model: User, as: "host", attributes: ["full_name", "email"] },
+      ],
+    });
+
+    if (!guest) {
+      throw new ApiError(404, "Guest not found");
+    }
 
     const permission = await PermissionSettings.findOne({
       where: { permission_type: "guest_approver" },
@@ -519,7 +421,11 @@ class GuestService {
     const transaction = await sequelize.transaction();
 
     try {
-      const guest = await findVisibleGuestOrThrow({ slug }, user, transaction);
+      const guest = await Guest.findOne({ where: { slug }, transaction });
+
+      if (!guest) {
+        throw new ApiError(404, "Guest not found");
+      }
 
       let mediaId = guest.profile_image;
 
@@ -618,8 +524,11 @@ class GuestService {
   //--------------------------------
   // DELETE Guest
   //--------------------------------
-  static async deleteGuest(id: string, requester: any): Promise<void> {
-    const guest = await findVisibleGuestOrThrow({ id }, requester);
+  static async deleteGuest(id: string, requester?: any): Promise<void> {
+    const guest = await Guest.findByPk(id);
+    if (!guest) {
+      throw new ApiError(404, "Guest not found");
+    }
     await guest.destroy();
   }
 }

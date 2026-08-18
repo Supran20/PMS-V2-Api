@@ -9,74 +9,12 @@ import {
 import Guest from "../guest/guest.model";
 import User from "../users/user.model";
 import Studio from "../studio/studio.model";
-import { sendEmail } from "../../services/email.service";
 import Media from "../media/media.model";
-import { generateInterviewEmailHtml } from "../../services/email.service";
 import eventBus from "../../events/eventBus";
 import { EVENTS } from "../../events/events.constants";
-import {
-  getVisibilityFilter,
-  mergeVisibilityFilter,
-  VisibilitySubject,
-} from "../../utils/visibility.util";
 import GuestReapprovalRequestService from "../guest_reapproval_request/guest_reapproval_request.service";
-import { maskGuestContacts } from "../../utils/guest-contact.util";
-import PermissionSettings from "../settings/permission_settings/permission_set.model";
-// Same shape-building helper used in guest.service.ts — kept local here
-// to avoid touching that file again. Consider moving to visibility.util.ts
-// as a shared export if you want a single source of truth.
-function toVisibilitySubject(requester: any): VisibilitySubject {
-  return {
-    id: requester?.id,
-    role_name: requester?.roles?.[0]?.role_name ?? null,
-    created_at: requester?.created_at,
-    visibility_mode: requester?.visibility_mode ?? "default",
-    visibility_start_date: requester?.visibility_start_date ?? null,
-    visibility_end_date: requester?.visibility_end_date ?? null,
-  };
-}
 
-// host_id lives directly on Interview, so unlike Guest (which needs an
-// extra join through Interview to resolve indirect assignment), the
-// assignment override here is a single flat field — no assignmentIds
-// lookup needed.
-const INTERVIEW_ASSIGNMENT_OPTIONS = { assignmentField: "host_id" };
-
-// Builds the fully merged where-clause for interview queries, honoring:
-//  - time-based visibility (default/range/all, per requester.visibility_mode)
-//  - direct assignment (Interview.host_id === requester.id), Host only
-// Admin and "all"-mode Host/Staff get back the original baseWhere
-// untouched, since getVisibilityFilter returns null for them.
-function buildInterviewVisibilityWhere(
-  baseWhere: Record<string, any>,
-  requester: any,
-): Record<string, any> {
-  const visibilityFilter = getVisibilityFilter(
-    toVisibilitySubject(requester),
-    INTERVIEW_ASSIGNMENT_OPTIONS,
-  );
-  return mergeVisibilityFilter(baseWhere, visibilityFilter);
-}
-
-// Shared helper: fetch a single interview honoring the requester's
-// visibility settings, or throw 404. Used by every write path below so
-// the "can't touch what you can't see" rule lives in exactly one place.
-async function findVisibleInterviewOrThrow(
-  id: string,
-  requester: any,
-  transaction: Transaction,
-  lock?: any,
-): Promise<Interview> {
-  const where = buildInterviewVisibilityWhere({ id }, requester);
-
-  const interview = await Interview.findOne({ where, transaction, lock });
-  if (!interview) throw new ApiError(404, "Interview not found");
-  return interview;
-}
-
-// Resolves an interview's cc_user_ids into email addresses. Per-interview
-// CC, deliberately unrelated to PermissionSettings — replaces the old
-// global "published_interview_cc" lookup entirely.
+// Resolves an interview's cc_user_ids into email addresses.
 async function resolveCcEmails(
   ccUserIds: string[] | null | undefined,
   transaction: Transaction,
@@ -187,11 +125,8 @@ class InterviewService {
     newEpisode: number,
     updaterId: string,
     transaction: Transaction,
-    requester?: any,
   ) {
-    const interview = requester
-      ? await findVisibleInterviewOrThrow(interviewId, requester, transaction)
-      : await Interview.findByPk(interviewId, { transaction });
+    const interview = await Interview.findByPk(interviewId, { transaction });
 
     if (!interview) {
       throw new ApiError(404, "Interview not found");
@@ -307,9 +242,7 @@ class InterviewService {
       // --------------------------------
       // Repeat-booking gate: if this guest already has a published
       // interview, they can only be booked again while Guest.approved
-      // is true. Detect-only — no writes here; the frontend shows a
-      // confirm modal and the actual request is created via a separate
-      // explicit POST /guest-reapprovals call.
+      // is true.
       // --------------------------------
       const priorPublishedInterview = await Interview.findOne({
         where: { guest_id: data.guest_id, status: "published" },
@@ -340,27 +273,6 @@ class InterviewService {
 
         throw error;
       }
-
-      // if (priorPublishedInterview && !guest.approved) {
-      //   const request =
-      //     await GuestReapprovalRequestService.createRepeatBookingRequest(
-      //       guest.id,
-      //       creatorId,
-      //       data.host_id ?? guest.host_id ?? null,
-      //       transaction,
-      //     );
-
-      //   await transaction.commit();
-
-      //   const error: any = new ApiError(
-      //     409,
-      //     "This guest has a prior published interview and requires re-approval before being booked again.",
-      //   );
-      //   error.code = "GUEST_REQUIRES_REAPPROVAL";
-      //   error.guestId = guest.id;
-      //   error.reapprovalRequestId = request.id;
-      //   throw error;
-      // }
 
       // Determine host (allow override)
       let hostId: string;
@@ -428,7 +340,7 @@ class InterviewService {
         throw new ApiError(400, "Invalid host, guest or studio");
       }
 
-      const ccEmails = await resolveCcEmails(data.cc_user_ids, transaction); // ← new
+      const ccEmails = await resolveCcEmails(data.cc_user_ids, transaction);
       const bccEmails = await resolveBccEmails(data.bcc_user_ids, transaction);
 
       await transaction.commit();
@@ -445,7 +357,7 @@ class InterviewService {
         interviewDate: data.interview_date,
         startTime: data.start_time,
         endTime: end_time,
-        ccEmails, // ← new
+        ccEmails,
         bccEmails,
         creatorId,
       });
@@ -457,15 +369,11 @@ class InterviewService {
     }
   }
 
-
   //--------------------------------
   // GET ALL
   //--------------------------------
-  static async getAll(requester: any): Promise<any[]> {
-    const where = buildInterviewVisibilityWhere({}, requester);
-
+  static async getAll(requester?: any): Promise<any[]> {
     const interviews = await Interview.findAll({
-      where,
       order: [["episode", "DESC"]],
       include: [
         {
@@ -508,14 +416,6 @@ class InterviewService {
       ],
     });
 
-    const guests = interviews
-      .map((interview) => interview.guest)
-      .filter((g): g is Guest => Boolean(g));
-
-    await maskGuestContacts(guests, requester);
-
-    // 🔥 Attach cc user details — cc_user_ids is a plain array column,
-    // not a Sequelize association, so resolve it per-row.
     return await Promise.all(
       interviews.map(async (interview) => {
         const ccUsers = await User.findAll({
@@ -540,11 +440,9 @@ class InterviewService {
   //--------------------------------
   // GET BY ID
   //--------------------------------
-  static async getById(id: string, requester: any): Promise<any> {
-    const where = buildInterviewVisibilityWhere({ id }, requester);
-
+  static async getById(id: string, requester?: any): Promise<any> {
     const interview = await Interview.findOne({
-      where,
+      where: { id },
       include: [
         { model: Guest, as: "guest" },
         { model: User, as: "host" },
@@ -608,12 +506,10 @@ class InterviewService {
     const transaction = await sequelize.transaction();
 
     try {
-      const where = buildInterviewVisibilityWhere(
-        { id: { [Op.in]: orderedIds } },
-        requester,
-      );
-
-      const visibleCount = await Interview.count({ where, transaction });
+      const visibleCount = await Interview.count({
+        where: { id: { [Op.in]: orderedIds } },
+        transaction,
+      });
 
       if (visibleCount !== orderedIds.length) {
         throw new ApiError(404, "One or more interviews not found");
@@ -657,7 +553,6 @@ class InterviewService {
         targetEpisode,
         requester.id,
         transaction,
-        requester,
       );
 
       await transaction.commit();
@@ -670,9 +565,6 @@ class InterviewService {
   //--------------------------------
   // UPDATE
   //--------------------------------
-  //--------------------------------
-  // UPDATE
-  //--------------------------------
   static async updateInterview(
     id: string,
     data: Partial<InterviewAttributes>,
@@ -681,11 +573,11 @@ class InterviewService {
     const transaction = await sequelize.transaction();
 
     try {
-      const interview = await findVisibleInterviewOrThrow(
-        id,
-        requester,
-        transaction,
-      );
+      const interview = await Interview.findByPk(id, { transaction });
+
+      if (!interview) {
+        throw new ApiError(404, "Interview not found");
+      }
 
       const wasPublished = interview.status === "published";
 
@@ -703,7 +595,6 @@ class InterviewService {
           data.episode,
           requester.id,
           transaction,
-          requester,
         );
 
         delete data.episode;
@@ -754,9 +645,6 @@ class InterviewService {
         { transaction },
       );
 
-      // Fetch guest, host and studio details — needed only when this
-      // update is the transition into "published", mirroring how
-      // createInterview fetches them before emitting INTERVIEW_CREATED.
       const justPublished = interview.status === "published" && !wasPublished;
 
       let guest: Guest | null = null;
@@ -770,8 +658,6 @@ class InterviewService {
         host = await User.findByPk(interview.host_id, { transaction });
         studio = await Studio.findByPk(interview.studio_id, { transaction });
 
-        // Per-interview CC — reads straight off this interview's own
-        // cc_user_ids, unrelated to PermissionSettings.
         ccEmails = await resolveCcEmails(interview.cc_user_ids, transaction);
         bccEmails = await resolveBccEmails(interview.bcc_user_ids, transaction);
       }
@@ -811,11 +697,10 @@ class InterviewService {
     const transaction = await sequelize.transaction();
 
     try {
-      const interview = await findVisibleInterviewOrThrow(
-        id,
-        requester,
-        transaction,
-      );
+      const interview = await Interview.findByPk(id, { transaction });
+      if (!interview) {
+        throw new ApiError(404, "Interview not found");
+      }
       await interview.destroy({ transaction });
       await transaction.commit();
     } catch (error) {

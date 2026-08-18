@@ -19,13 +19,6 @@ export interface UserAttributes {
   otp_in_sms?: boolean;
   otp_in_mail?: boolean;
 
-  visibility_mode?: "default" | "range" | "all";
-
-  visibility_start_date?: Date | null;
-  visibility_end_date?: Date | null;
-
-  hide_guest_contacts?: boolean;
-
   created_at?: Date;
   updated_at?: Date;
 }
