@@ -41,7 +41,7 @@ export const createUserSchema = z
 
     hide_guest_contacts: booleanFromString.optional(),
 
-    role_name: z.enum(["Admin", "Host", "Staff"]),
+    role_name: z.enum(["Admin", "Host", "Staff", "Super Admin"]),
   })
   .superRefine((data, ctx) => {
     const {
@@ -134,7 +134,7 @@ export const updateUserSchema = z
 
     hide_guest_contacts: booleanFromString.optional(),
 
-    role_name: z.enum(["Admin", "Host", "Staff"]).optional(),
+    role_name: z.enum(["Admin", "Host", "Staff", "Super Admin"]).optional(),
   })
   .superRefine((data, ctx) => {
     const {

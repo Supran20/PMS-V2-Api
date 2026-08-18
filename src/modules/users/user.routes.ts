@@ -9,7 +9,7 @@ const router = Router();
 router.post(
   "/",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   uploadMedia,
   UserController.create,
 );
@@ -28,7 +28,7 @@ router.get("/admins", authenticate, UserController.getAdmins);
 router.get(
   "/:id",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   UserController.getById,
 );
 
@@ -36,14 +36,14 @@ router.put(
   "/:id",
   authenticate,
   uploadMedia,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   UserController.update,
 );
 
 router.delete(
   "/:id",
   authenticate,
-  authorize("user.manage"),
+  // authorize("user.manage"),
   UserController.delete,
 );
 
