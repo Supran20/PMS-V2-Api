@@ -13,7 +13,7 @@ const router = Router();
 router.post(
   "/",
   authenticate,
-  authorize("guest.create"),
+  // authorize("guest.create"),
   validate(createGuestNoteSchema),
   GuestNoteController.create,
 );
@@ -21,14 +21,14 @@ router.post(
 router.get(
   "/guest/:guestId",
   authenticate,
-  authorize("guest.view"),
+  // authorize("guest.view"),
   GuestNoteController.getByGuest,
 );
 
 router.patch(
   "/:id",
   authenticate,
-  authorize("guest.update"),
+  // authorize("guest.update"),
   validate(updateGuestNoteSchema),
   GuestNoteController.update,
 );
@@ -36,7 +36,7 @@ router.patch(
 router.delete(
   "/:id",
   authenticate,
-  authorize("guest.delete"),
+  // authorize("guest.delete"),
   GuestNoteController.delete,
 );
 
