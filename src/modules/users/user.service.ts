@@ -15,10 +15,6 @@ const USER_EXCLUDE_FIELDS = [
   "remember_token_expires_at",
 ];
 
-// Roles that are subject to the created_at-based visibility restriction
-const RESTRICTED_ROLES = ["Staff", "Host"];
-const VISIBILITY_MODES = ["default", "range", "all"];
-
 class UserService {
   //--------------------------------
   // CREATE USER
@@ -42,39 +38,10 @@ class UserService {
 
       const hashedPassword = await bcrypt.hash(data.password, 10);
 
-      // Visibility settings only apply to Staff/Host.
-      // Admin is always unrestricted, so we force these regardless of
-      // what was passed in (validation should already block this, but
-      // the service layer shouldn't trust that alone).
-      const isRestrictedRole = RESTRICTED_ROLES.includes(data.role_name);
-
-      let visibility_mode = "default";
-      let visibility_start_date: Date | null = null;
-      let visibility_end_date: Date | null = null;
-
-      if (isRestrictedRole) {
-        visibility_mode = VISIBILITY_MODES.includes(data.visibility_mode)
-          ? data.visibility_mode
-          : "default";
-
-        if (visibility_mode === "range") {
-          // start is required in range mode (validation enforces this);
-          // end is optional — a null end means "start through now".
-          visibility_start_date = data.visibility_start_date ?? null;
-          visibility_end_date = data.visibility_end_date ?? null;
-        }
-        // "default" and "all" both mean no explicit dates stored —
-        // "all" carries its meaning through mode alone.
-      }
-
       const user = await User.create(
         {
           ...data,
           password: hashedPassword,
-          visibility_mode,
-          visibility_start_date,
-          visibility_end_date,
-          hide_guest_contacts: data.hide_guest_contacts ?? false,
         },
         { transaction },
       );
@@ -273,116 +240,8 @@ class UserService {
         data.password = await bcrypt.hash(data.password, 10);
       }
 
-      // Extract role_name and visibility fields separately — they need
-      // special handling before being merged back into the update payload.
-      const {
-        role_name,
-        visibility_mode,
-        visibility_start_date,
-        visibility_end_date,
-        hide_guest_contacts,
-        ...userData
-      } = data;
-
-      // Only Admin may grant/revoke a visibility window on another user.
-      // Adjust `requester.role_name` below to however role is actually
-      // exposed on req.user in your auth middleware.
-      const isTouchingVisibility =
-        Object.prototype.hasOwnProperty.call(data, "visibility_mode") ||
-        Object.prototype.hasOwnProperty.call(data, "visibility_start_date") ||
-        Object.prototype.hasOwnProperty.call(data, "visibility_end_date");
-
-      // Only Admin may toggle whether a user's guest-contact view is restricted.
-      const isTouchingContactVisibility = Object.prototype.hasOwnProperty.call(
-        data,
-        "hide_guest_contacts",
-      );
-
-      const requesterRoleName = requester?.roles?.[0]?.role_name;
-
-      if (isTouchingVisibility && requesterRoleName !== "Admin") {
-        throw new ApiError(
-          403,
-          "Only Admin can modify a user's visibility settings",
-        );
-      }
-
-      if (isTouchingContactVisibility && requesterRoleName !== "Admin") {
-        throw new ApiError(
-          403,
-          "Only Admin can modify a user's guest contact visibility",
-        );
-      }
-
-      // Resolve the role this user will have AFTER this update
-      const effectiveRoleName = role_name ?? user.roles?.[0]?.role_name ?? null;
-      const isRestrictedRole = RESTRICTED_ROLES.includes(effectiveRoleName);
-
-      if (isTouchingContactVisibility) {
-        userData.hide_guest_contacts = hide_guest_contacts;
-      }
-
-      if (!isRestrictedRole) {
-        // Admin (or a role change into Admin) is always unrestricted —
-        // strip any stale visibility settings.
-        userData.visibility_mode = "default";
-        userData.visibility_start_date = null;
-        userData.visibility_end_date = null;
-      } else {
-        // Staff/Host: only touch these fields if explicitly present in
-        // the payload, so a partial update doesn't accidentally wipe an
-        // existing window or mode.
-        const isTouchingMode = Object.prototype.hasOwnProperty.call(
-          data,
-          "visibility_mode",
-        );
-
-        if (isTouchingMode) {
-          const nextMode = VISIBILITY_MODES.includes(visibility_mode)
-            ? visibility_mode
-            : "default";
-
-          userData.visibility_mode = nextMode;
-
-          if (nextMode === "range") {
-            // Trust validation to have required start_date; end may be
-            // explicitly null (open-ended: start through now).
-            userData.visibility_start_date =
-              Object.prototype.hasOwnProperty.call(
-                data,
-                "visibility_start_date",
-              )
-                ? visibility_start_date
-                : user.visibility_start_date;
-            userData.visibility_end_date = Object.prototype.hasOwnProperty.call(
-              data,
-              "visibility_end_date",
-            )
-              ? visibility_end_date
-              : null;
-          } else {
-            // "default" or "all" -> actively clear any previously
-            // granted window.
-            userData.visibility_start_date = null;
-            userData.visibility_end_date = null;
-          }
-        } else {
-          // Mode not being changed this request, but dates might still
-          // be touched directly (e.g. adjusting an existing range
-          // in-place without resending mode). Only meaningful if the
-          // user is currently in "range" mode.
-          if (
-            Object.prototype.hasOwnProperty.call(data, "visibility_start_date")
-          ) {
-            userData.visibility_start_date = visibility_start_date;
-          }
-          if (
-            Object.prototype.hasOwnProperty.call(data, "visibility_end_date")
-          ) {
-            userData.visibility_end_date = visibility_end_date;
-          }
-        }
-      }
+      // Extract role_name separately before updating user fields
+      const { role_name, ...userData } = data;
 
       // Role change
       if (role_name) {
