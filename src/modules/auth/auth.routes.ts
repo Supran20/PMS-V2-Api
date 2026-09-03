@@ -25,4 +25,3 @@ router.post(
 router.get("/me", authenticate, AuthController.me);
 
 export default router;
-
