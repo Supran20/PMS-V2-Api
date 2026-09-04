@@ -6,6 +6,7 @@ import Role from "../roles/role.model";
 import ApiError from "../../middleware/error-handlers/ApiError";
 import { UserAttributes } from "./user.interface";
 import Media from "../media/media.model";
+import Permission from "../permissions/permission.model";
 
 const USER_EXCLUDE_FIELDS = [
   "password",
@@ -48,6 +49,13 @@ class UserService {
 
       const role = await Role.findOne({
         where: { role_name: data.role_name },
+        include: [
+          {
+            model: Permission,
+            as: "permissions",
+            through: { attributes: [] },
+          },
+        ],
         transaction,
       });
 
@@ -56,6 +64,15 @@ class UserService {
       }
 
       await user.addRole(role, { transaction });
+
+      // Explicit permission_ids overrides role defaults; otherwise inherit
+      // the role's default permission set.
+      const permissionIds =
+        role.role_name === "Super Admin"
+          ? []
+          : (data.permission_ids ?? role.permissions?.map((p) => p.id) ?? []);
+
+      await user.setPermissions(permissionIds, { transaction });
 
       if (file) {
         const originalName = file.originalname;
@@ -112,6 +129,11 @@ class UserService {
         {
           model: Role,
           as: "roles",
+          through: { attributes: [] },
+        },
+        {
+          model: Permission,
+          as: "permissions",
           through: { attributes: [] },
         },
         {
@@ -241,12 +263,21 @@ class UserService {
       }
 
       // Extract role_name separately before updating user fields
-      const { role_name, ...userData } = data;
+      const { role_name, permission_ids, ...userData } = data;
+
+      let nextPermissionIds: string[] | null = null;
 
       // Role change
       if (role_name) {
         const role = await Role.findOne({
           where: { role_name },
+          include: [
+            {
+              model: Permission,
+              as: "permissions",
+              through: { attributes: [] },
+            },
+          ],
           transaction,
         });
 
@@ -256,6 +287,26 @@ class UserService {
 
         // Replace old roles
         await user.setRoles([role], { transaction });
+
+        // Changing role resets permissions to that role's defaults, unless
+        // overridden below by an explicit permission_ids payload.
+        // Super Admin bypasses permission checks in code entirely, so we
+        // explicitly clear any row-level permissions here for data hygiene
+        // — regardless of what the role_permissions seeder happens to contain.
+        nextPermissionIds =
+          role.role_name === "Super Admin"
+            ? []
+            : (role.permissions?.map((p) => p.id) ?? []);
+      }
+
+      // Explicit permission_ids always wins over role defaults, whether or
+      // not the role also changed in this same request.
+      if (permission_ids !== undefined) {
+        nextPermissionIds = permission_ids;
+      }
+
+      if (nextPermissionIds !== null) {
+        await user.setPermissions(nextPermissionIds, { transaction });
       }
 
       let mediaId = user.profile_image;

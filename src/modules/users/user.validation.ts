@@ -22,6 +22,7 @@ export const createUserSchema = z.object({
   otp_in_sms: booleanFromString.optional(),
 
   role_name: z.enum(["Admin", "Host", "Staff", "Super Admin"]),
+  permission_ids: z.array(z.string().uuid()).optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
@@ -38,4 +39,5 @@ export const updateUserSchema = z.object({
   otp_in_sms: booleanFromString.optional(),
 
   role_name: z.enum(["Admin", "Host", "Staff", "Super Admin"]).optional(),
+  permission_ids: z.array(z.string().uuid()).optional(),
 });

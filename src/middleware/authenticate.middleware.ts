@@ -26,20 +26,20 @@ export const authenticate = async (
       id: string;
     };
 
-    // 🔥 Load user with roles + permissions in ONE query
+    // 🔥 Load user with roles + row-level permissions in ONE query.
+    // Permissions are user-scoped (source of truth), NOT derived from
+    // role.permissions — role is loaded only to check the Super Admin bypass.
     const user = await User.findByPk(decoded.id, {
       include: [
         {
           model: Role,
           as: "roles",
           through: { attributes: [] },
-          include: [
-            {
-              model: Permission,
-              as: "permissions",
-              through: { attributes: [] },
-            },
-          ],
+        },
+        {
+          model: Permission,
+          as: "permissions",
+          through: { attributes: [] },
         },
       ],
     });
