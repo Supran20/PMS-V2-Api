@@ -9,26 +9,30 @@ const router = Router();
 router.post(
   "/",
   authenticate,
-  // authorize("user.manage"),
+  authorize("users.create"),
   uploadMedia,
   UserController.create,
 );
 
+router.get("/", authenticate, authorize("users.view"), UserController.getAll);
+
 router.get(
-  "/",
+  "/hosts",
   authenticate,
-  // authorize("user.manage"),
-
-  UserController.getAll,
+  authorize("users.view"),
+  UserController.getHosts,
 );
-
-router.get("/hosts", authenticate, UserController.getHosts);
-router.get("/admins", authenticate, UserController.getAdmins);
+router.get(
+  "/admins",
+  authenticate,
+  authorize("users.view"),
+  UserController.getAdmins,
+);
 
 router.get(
   "/:id",
   authenticate,
-  // authorize("user.manage"),
+  authorize("users.view"),
   UserController.getById,
 );
 
@@ -36,14 +40,14 @@ router.put(
   "/:id",
   authenticate,
   uploadMedia,
-  // authorize("user.manage"),
+  authorize("users.edit"),
   UserController.update,
 );
 
 router.delete(
   "/:id",
   authenticate,
-  // authorize("user.manage"),
+  authorize("users.delete"),
   UserController.delete,
 );
 

@@ -135,6 +135,7 @@ class UserService {
           model: Permission,
           as: "permissions",
           through: { attributes: [] },
+          attributes: ["id", "permission_type"],
         },
         {
           model: Media,
@@ -165,6 +166,13 @@ class UserService {
           model: Media,
           as: "profileImage",
           attributes: ["id", "media_name", "path", "type", "tag_id"],
+        },
+
+        {
+          model: Permission,
+          as: "permissions",
+          attributes: ["id", "permission_type"],
+          through: { attributes: [] },
         },
       ],
     });
@@ -200,6 +208,12 @@ class UserService {
           as: "profileImage",
           attributes: ["id", "media_name", "path", "type"],
         },
+        {
+          model: Permission,
+          as: "permissions",
+          attributes: ["id", "permission_type"],
+          through: { attributes: [] },
+        },
       ],
       order: [["created_at", "DESC"]],
     });
@@ -225,6 +239,12 @@ class UserService {
           model: Media,
           as: "profileImage",
           attributes: ["id", "media_name", "path", "type"],
+        },
+        {
+          model: Permission,
+          as: "permissions",
+          attributes: ["id", "permission_type"],
+          through: { attributes: [] },
         },
       ],
       order: [["created_at", "DESC"]],
