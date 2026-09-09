@@ -9,34 +9,31 @@ import { authenticate } from "../../middleware/authenticate.middleware";
 import validate from "../../middleware/validate.middleware";
 
 const router = Router();
+router.use(authenticate);
 
 router.post(
   "/",
-  authenticate,
-  // authorize("guest.create"),
+  authorize("guests.create"),
   validate(createGuestNoteSchema),
   GuestNoteController.create,
 );
 
 router.get(
   "/guest/:guestId",
-  authenticate,
-  // authorize("guest.view"),
+  authorize("guests.view"),
   GuestNoteController.getByGuest,
 );
 
 router.patch(
   "/:id",
-  authenticate,
-  // authorize("guest.update"),
+  authorize("guests.edit"),
   validate(updateGuestNoteSchema),
   GuestNoteController.update,
 );
 
 router.delete(
   "/:id",
-  authenticate,
-  // authorize("guest.delete"),
+  authorize("guests.delete"),
   GuestNoteController.delete,
 );
 

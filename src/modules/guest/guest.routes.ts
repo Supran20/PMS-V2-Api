@@ -7,54 +7,41 @@ import validate from "../../middleware/validate.middleware";
 import { uploadMedia } from "../../middleware/upload.media.middleware";
 
 const router = Router();
+router.use(authenticate);
 
 router.post(
   "/",
-  authenticate,
-  // authorize("guest.create"),
+  authorize("guests.create"),
   uploadMedia,
   validate(createGuestSchema),
   GuestController.create,
 );
 
-router.get("/", authenticate, GuestController.getAll);
+router.get("/", authorize("guests.view"), GuestController.getAll);
 
-router.get(
-  "/slug/:slug",
-  authenticate,
-  // authorize("guest.view"),
-  GuestController.getBySlug,
-);
-router.get("/:id", GuestController.getById);
+router.get("/slug/:slug", authorize("guests.view"), GuestController.getBySlug);
+router.get("/:id", authorize("guests.view"), GuestController.getById);
 
 router.patch(
   "/:id/approve",
-  authenticate,
-  // authorize("guest.update"),
+  authorize("guests.approve"),
   GuestController.approve,
 );
 
 router.patch(
   "/:id/reject",
-  authenticate,
-  // authorize("guest.update"),
+  authorize("guests.approve"),
   GuestController.reject,
 );
 
 router.put(
   "/slug/:slug",
-  authenticate,
-  // authorize("guest.update"),
+  authorize("guests.edit"),
   uploadMedia,
   validate(updateGuestSchema),
   GuestController.updateBySlug,
 );
 
-router.delete(
-  "/:id",
-  authenticate,
-  // authorize("guest.delete"),
-  GuestController.delete,
-);
+router.delete("/:id", authorize("guests.delete"), GuestController.delete);
 
 export default router;
