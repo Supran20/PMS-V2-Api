@@ -347,7 +347,8 @@ class GuestService {
   static async approveGuest(id: string, approver: any): Promise<Guest> {
     const guest = await Guest.findByPk(id, {
       include: [
-        { model: User, as: "host", attributes: ["full_name", "email"] },
+        { model: User, as: "host", attributes: ["id", "full_name", "email"] },
+        { model: Media, as: "profileImage", attributes: ["path"] },
       ],
     });
 
@@ -381,6 +382,19 @@ class GuestService {
       updated_by: approver.id,
     });
 
+    const host = (guest as any).host;
+    const profileImage = (guest as any).profileImage;
+
+    eventBus.emit(EVENTS.GUEST_APPROVED, {
+      guestId: guest.id,
+      guestName: guest.full_name,
+      hostId: guest.host_id,
+      hostEmail: host?.email,
+      hostName: host?.full_name,
+      approverName: approver.full_name,
+      guestImagePath: profileImage?.path ?? null,
+    });
+
     return guest;
   }
 
@@ -390,7 +404,8 @@ class GuestService {
   static async rejectGuest(id: string, approver: any): Promise<Guest> {
     const guest = await Guest.findByPk(id, {
       include: [
-        { model: User, as: "host", attributes: ["full_name", "email"] },
+        { model: User, as: "host", attributes: ["id", "full_name", "email"] },
+        { model: Media, as: "profileImage", attributes: ["path"] },
       ],
     });
 
@@ -419,6 +434,19 @@ class GuestService {
       approved: false,
       approved_by: approver.id,
       updated_by: approver.id,
+    });
+
+    const host = (guest as any).host;
+    const profileImage = (guest as any).profileImage;
+
+    eventBus.emit(EVENTS.GUEST_REJECTED, {
+      guestId: guest.id,
+      guestName: guest.full_name,
+      hostId: guest.host_id,
+      hostEmail: host?.email,
+      hostName: host?.full_name,
+      approverName: approver.full_name,
+      guestImagePath: profileImage?.path ?? null,
     });
 
     return guest;

@@ -144,60 +144,107 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
   }
 });
 // ========================================
-// GUEST APPROVED → Notify Host
+// GUEST APPROVED → Notify Admin (not Super Admin) & Assigned Host
 // ========================================
 eventBus.on(EVENTS.GUEST_APPROVED, async (payload: any) => {
   try {
-    const { guestName, hostEmail, hostName, approverName, guestImagePath } =
-      payload; // ✅ add guestImagePath
+    const {
+      guestId,
+      guestName,
+      hostId,
+      hostEmail,
+      hostName,
+      approverName,
+      guestImagePath,
+    } = payload;
 
-    if (!hostEmail) return;
+    const adminUsers = await getAdminNotSuperAdminUsers();
 
-    const log = await LogService.createLog({
-      event_type: "guest.approved",
-      recipient_email: hostEmail,
-      status: "pending",
-    });
+    let host = hostEmail
+      ? { id: hostId, full_name: hostName, email: hostEmail }
+      : null;
 
-    try {
-      // ✅ resolve attachment
-      const attachments: any[] = [];
-      let hasGuestImage = false;
+    if (!host && guestId) {
+      const guest = await Guest.findByPk(guestId, {
+        include: [
+          { model: User, as: "host", attributes: ["id", "full_name", "email"] },
+        ],
+      });
+      host = (guest as any)?.host;
+    }
 
-      if (guestImagePath) {
-        const path = await import("path");
-        const fs = await import("fs");
-        const absolutePath = path.join(process.cwd(), guestImagePath);
+    const recipientsMap = new Map<
+      string,
+      { id: string; full_name: string; email: string }
+    >();
 
-        if (fs.existsSync(absolutePath)) {
-          attachments.push({
-            filename: "guest-photo.jpg",
-            path: absolutePath,
-            cid: "guestImage",
-          });
-          hasGuestImage = true;
-        }
+    for (const admin of adminUsers) {
+      if (admin.email) {
+        recipientsMap.set(admin.email.trim().toLowerCase(), {
+          id: admin.id,
+          full_name: admin.full_name,
+          email: admin.email.trim(),
+        });
       }
+    }
 
-      const html = await generateGuestStatusEmailHtml(
-        hostName,
-        guestName,
-        "approved",
-        approverName,
-        hasGuestImage, // ✅ new
-      );
+    if (host?.email) {
+      recipientsMap.set(host.email.trim().toLowerCase(), {
+        id: host.id,
+        full_name: host.full_name,
+        email: host.email.trim(),
+      });
+    }
 
-      await sendEmail({
-        to: hostEmail,
-        subject: `Guest Approved - ${guestName}`,
-        text: `Your guest "${guestName}" has been approved.`,
-        html,
-        attachments, // ✅ new
+    const recipients = Array.from(recipientsMap.values());
+    if (!recipients.length) return;
+
+    const attachments: any[] = [];
+    let hasGuestImage = false;
+
+    if (guestImagePath) {
+      const path = await import("path");
+      const fs = await import("fs");
+      const absolutePath = path.join(process.cwd(), guestImagePath);
+
+      if (fs.existsSync(absolutePath)) {
+        attachments.push({
+          filename: "guest-photo.jpg",
+          path: absolutePath,
+          cid: "guestImage",
+        });
+        hasGuestImage = true;
+      }
+    }
+
+    for (const recipient of recipients) {
+      const log = await LogService.createLog({
+        event_type: "guest.approved",
+        recipient_email: recipient.email,
+        status: "pending",
       });
 
-      await LogService.markAsSent(log.id);
-    } catch (error: any) {
-      await LogService.markAsFailed(log.id, error);
+      try {
+        const html = await generateGuestStatusEmailHtml(
+          recipient.full_name,
+          guestName,
+          "approved",
+          approverName,
+          hasGuestImage,
+        );
+
+        await sendEmail({
+          to: recipient.email,
+          subject: `Guest Approved - ${guestName}`,
+          text: `Guest "${guestName}" has been approved.`,
+          html,
+          attachments,
+        });
+
+        await LogService.markAsSent(log.id);
+      } catch (error: any) {
+        await LogService.markAsFailed(log.id, error);
+      }
     }
   } catch (error) {
     console.error("Listener error (GUEST_APPROVED):", error);
@@ -205,58 +252,107 @@ eventBus.on(EVENTS.GUEST_APPROVED, async (payload: any) => {
 });
 
 // ========================================
-// GUEST REJECTED → Notify Host
+// GUEST REJECTED → Notify Admin (not Super Admin) & Assigned Host
 // ========================================
 eventBus.on(EVENTS.GUEST_REJECTED, async (payload: any) => {
   try {
-    const { guestName, hostEmail, hostName, approverName, guestImagePath } =
-      payload;
+    const {
+      guestId,
+      guestName,
+      hostId,
+      hostEmail,
+      hostName,
+      approverName,
+      guestImagePath,
+    } = payload;
 
-    if (!hostEmail) return;
+    const adminUsers = await getAdminNotSuperAdminUsers();
 
-    const log = await LogService.createLog({
-      event_type: "guest.rejected",
-      recipient_email: hostEmail,
-      status: "pending",
-    });
+    let host = hostEmail
+      ? { id: hostId, full_name: hostName, email: hostEmail }
+      : null;
 
-    try {
-      const attachments: any[] = [];
-      let hasGuestImage = false;
+    if (!host && guestId) {
+      const guest = await Guest.findByPk(guestId, {
+        include: [
+          { model: User, as: "host", attributes: ["id", "full_name", "email"] },
+        ],
+      });
+      host = (guest as any)?.host;
+    }
 
-      if (guestImagePath) {
-        const path = await import("path");
-        const fs = await import("fs");
-        const absolutePath = path.join(process.cwd(), guestImagePath);
+    const recipientsMap = new Map<
+      string,
+      { id: string; full_name: string; email: string }
+    >();
 
-        if (fs.existsSync(absolutePath)) {
-          attachments.push({
-            filename: "guest-photo.jpg",
-            path: absolutePath,
-            cid: "guestImage",
-          });
-          hasGuestImage = true;
-        }
+    for (const admin of adminUsers) {
+      if (admin.email) {
+        recipientsMap.set(admin.email.trim().toLowerCase(), {
+          id: admin.id,
+          full_name: admin.full_name,
+          email: admin.email.trim(),
+        });
       }
-      const html = await generateGuestStatusEmailHtml(
-        hostName,
-        guestName,
-        "rejected",
-        approverName,
-        hasGuestImage,
-      );
+    }
 
-      await sendEmail({
-        to: hostEmail,
-        subject: `Guest Rejected - ${guestName}`,
-        text: `Your guest "${guestName}" has been rejected.`,
-        html,
-        attachments,
+    if (host?.email) {
+      recipientsMap.set(host.email.trim().toLowerCase(), {
+        id: host.id,
+        full_name: host.full_name,
+        email: host.email.trim(),
+      });
+    }
+
+    const recipients = Array.from(recipientsMap.values());
+    if (!recipients.length) return;
+
+    const attachments: any[] = [];
+    let hasGuestImage = false;
+
+    if (guestImagePath) {
+      const path = await import("path");
+      const fs = await import("fs");
+      const absolutePath = path.join(process.cwd(), guestImagePath);
+
+      if (fs.existsSync(absolutePath)) {
+        attachments.push({
+          filename: "guest-photo.jpg",
+          path: absolutePath,
+          cid: "guestImage",
+        });
+        hasGuestImage = true;
+      }
+    }
+
+    for (const recipient of recipients) {
+      const log = await LogService.createLog({
+        event_type: "guest.rejected",
+        recipient_email: recipient.email,
+        status: "pending",
       });
 
-      await LogService.markAsSent(log.id);
-    } catch (error: any) {
-      await LogService.markAsFailed(log.id, error);
+      try {
+        const html = await generateGuestStatusEmailHtml(
+          recipient.full_name,
+          guestName,
+          "rejected",
+          approverName,
+          hasGuestImage,
+        );
+
+        await sendEmail({
+          to: recipient.email,
+          subject: `Guest Rejected - ${guestName}`,
+          text: `Guest "${guestName}" has been rejected.`,
+          html,
+          attachments,
+        });
+
+        await LogService.markAsSent(log.id);
+      } catch (error: any) {
+        await LogService.markAsFailed(log.id, error);
+      }
     }
   } catch (error) {
     console.error("Listener error (GUEST_REJECTED):", error);
@@ -619,65 +715,118 @@ eventBus.on(EVENTS.GUEST_REAPPROVAL_REQUESTED, async (payload: any) => {
 });
 
 // ========================================
-// GUEST REAPPROVED → Notify Requester
+// GUEST REAPPROVED → Notify Admin (not Super Admin), Assigned Host & Requester
 // ========================================
 eventBus.on(EVENTS.GUEST_REAPPROVED, async (payload: any) => {
   try {
     const {
+      guestId,
       guestName,
       reviewerName,
       requesterEmail,
       requesterName,
+      proposedHostId,
+      guestHostId,
       guestImagePath,
-    } = payload; // ✅ add guestImagePath
+    } = payload;
 
-    if (!requesterEmail) return;
+    const adminUsers = await getAdminNotSuperAdminUsers();
 
-    const log = await LogService.createLog({
-      event_type: "guest.reapproved",
-      recipient_email: requesterEmail,
-      status: "pending",
-    });
+    let hostUser: any = null;
+    const targetHostId = proposedHostId || guestHostId;
+    if (targetHostId) {
+      hostUser = await User.findByPk(targetHostId, {
+        attributes: ["id", "full_name", "email"],
+      });
+    } else if (guestId) {
+      const guest = await Guest.findByPk(guestId, {
+        include: [
+          { model: User, as: "host", attributes: ["id", "full_name", "email"] },
+        ],
+      });
+      hostUser = (guest as any)?.host;
+    }
 
-    try {
-      // ✅ resolve attachment
-      const attachments: any[] = [];
-      let hasGuestImage = false;
+    const recipientsMap = new Map<
+      string,
+      { id: string; full_name: string; email: string }
+    >();
 
-      if (guestImagePath) {
-        const path = await import("path");
-        const fs = await import("fs");
-        const absolutePath = path.join(process.cwd(), guestImagePath);
-
-        if (fs.existsSync(absolutePath)) {
-          attachments.push({
-            filename: "guest-photo.jpg",
-            path: absolutePath,
-            cid: "guestImage",
-          });
-          hasGuestImage = true;
-        }
+    for (const admin of adminUsers) {
+      if (admin.email) {
+        recipientsMap.set(admin.email.trim().toLowerCase(), {
+          id: admin.id,
+          full_name: admin.full_name,
+          email: admin.email.trim(),
+        });
       }
+    }
 
-      const html = await generateGuestStatusEmailHtml(
-        requesterName ?? "there",
-        guestName,
-        "approved",
-        reviewerName,
-        hasGuestImage, // ✅ new
-      );
+    if (hostUser?.email) {
+      recipientsMap.set(hostUser.email.trim().toLowerCase(), {
+        id: hostUser.id,
+        full_name: hostUser.full_name,
+        email: hostUser.email.trim(),
+      });
+    }
 
-      await sendEmail({
-        to: requesterEmail,
-        subject: `Guest Re-approved - ${guestName}`,
-        text: `"${guestName}" has been re-approved and can now be booked.`,
-        html,
-        attachments, // ✅ new
+    if (requesterEmail) {
+      recipientsMap.set(requesterEmail.trim().toLowerCase(), {
+        id: "",
+        full_name: requesterName ?? "there",
+        email: requesterEmail.trim(),
+      });
+    }
+
+    const recipients = Array.from(recipientsMap.values());
+    if (!recipients.length) return;
+
+    const attachments: any[] = [];
+    let hasGuestImage = false;
+
+    if (guestImagePath) {
+      const path = await import("path");
+      const fs = await import("fs");
+      const absolutePath = path.join(process.cwd(), guestImagePath);
+
+      if (fs.existsSync(absolutePath)) {
+        attachments.push({
+          filename: "guest-photo.jpg",
+          path: absolutePath,
+          cid: "guestImage",
+        });
+        hasGuestImage = true;
+      }
+    }
+
+    for (const recipient of recipients) {
+      const log = await LogService.createLog({
+        event_type: "guest.reapproved",
+        recipient_email: recipient.email,
+        status: "pending",
       });
 
-      await LogService.markAsSent(log.id);
-    } catch (error: any) {
-      await LogService.markAsFailed(log.id, error);
+      try {
+        const html = await generateGuestStatusEmailHtml(
+          recipient.full_name,
+          guestName,
+          "approved",
+          reviewerName,
+          hasGuestImage,
+        );
+
+        await sendEmail({
+          to: recipient.email,
+          subject: `Guest Re-approved - ${guestName}`,
+          text: `"${guestName}" has been re-approved and can now be booked.`,
+          html,
+          attachments,
+        });
+
+        await LogService.markAsSent(log.id);
+      } catch (error: any) {
+        await LogService.markAsFailed(log.id, error);
+      }
     }
   } catch (error) {
     console.error("Listener error (GUEST_REAPPROVED):", error);
@@ -685,65 +834,118 @@ eventBus.on(EVENTS.GUEST_REAPPROVED, async (payload: any) => {
 });
 
 // ========================================
-// GUEST REAPPROVAL REJECTED → Notify Requester
+// GUEST REAPPROVAL REJECTED → Notify Admin (not Super Admin), Assigned Host & Requester
 // ========================================
 eventBus.on(EVENTS.GUEST_REAPPROVAL_REJECTED, async (payload: any) => {
   try {
     const {
+      guestId,
       guestName,
       reviewerName,
       requesterEmail,
       requesterName,
+      proposedHostId,
+      guestHostId,
       guestImagePath,
-    } = payload; // ✅ add guestImagePath
+    } = payload;
 
-    if (!requesterEmail) return;
+    const adminUsers = await getAdminNotSuperAdminUsers();
 
-    const log = await LogService.createLog({
-      event_type: "guest.reapproval_rejected",
-      recipient_email: requesterEmail,
-      status: "pending",
-    });
+    let hostUser: any = null;
+    const targetHostId = proposedHostId || guestHostId;
+    if (targetHostId) {
+      hostUser = await User.findByPk(targetHostId, {
+        attributes: ["id", "full_name", "email"],
+      });
+    } else if (guestId) {
+      const guest = await Guest.findByPk(guestId, {
+        include: [
+          { model: User, as: "host", attributes: ["id", "full_name", "email"] },
+        ],
+      });
+      hostUser = (guest as any)?.host;
+    }
 
-    try {
-      // ✅ resolve attachment
-      const attachments: any[] = [];
-      let hasGuestImage = false;
+    const recipientsMap = new Map<
+      string,
+      { id: string; full_name: string; email: string }
+    >();
 
-      if (guestImagePath) {
-        const path = await import("path");
-        const fs = await import("fs");
-        const absolutePath = path.join(process.cwd(), guestImagePath);
-
-        if (fs.existsSync(absolutePath)) {
-          attachments.push({
-            filename: "guest-photo.jpg",
-            path: absolutePath,
-            cid: "guestImage",
-          });
-          hasGuestImage = true;
-        }
+    for (const admin of adminUsers) {
+      if (admin.email) {
+        recipientsMap.set(admin.email.trim().toLowerCase(), {
+          id: admin.id,
+          full_name: admin.full_name,
+          email: admin.email.trim(),
+        });
       }
+    }
 
-      const html = await generateGuestStatusEmailHtml(
-        requesterName ?? "there",
-        guestName,
-        "rejected",
-        reviewerName,
-        hasGuestImage, // ✅ new
-      );
+    if (hostUser?.email) {
+      recipientsMap.set(hostUser.email.trim().toLowerCase(), {
+        id: hostUser.id,
+        full_name: hostUser.full_name,
+        email: hostUser.email.trim(),
+      });
+    }
 
-      await sendEmail({
-        to: requesterEmail,
-        subject: `Guest Re-approval Rejected - ${guestName}`,
-        text: `Your request to book "${guestName}" again was not approved.`,
-        html,
-        attachments, // ✅ new
+    if (requesterEmail) {
+      recipientsMap.set(requesterEmail.trim().toLowerCase(), {
+        id: "",
+        full_name: requesterName ?? "there",
+        email: requesterEmail.trim(),
+      });
+    }
+
+    const recipients = Array.from(recipientsMap.values());
+    if (!recipients.length) return;
+
+    const attachments: any[] = [];
+    let hasGuestImage = false;
+
+    if (guestImagePath) {
+      const path = await import("path");
+      const fs = await import("fs");
+      const absolutePath = path.join(process.cwd(), guestImagePath);
+
+      if (fs.existsSync(absolutePath)) {
+        attachments.push({
+          filename: "guest-photo.jpg",
+          path: absolutePath,
+          cid: "guestImage",
+        });
+        hasGuestImage = true;
+      }
+    }
+
+    for (const recipient of recipients) {
+      const log = await LogService.createLog({
+        event_type: "guest.reapproval_rejected",
+        recipient_email: recipient.email,
+        status: "pending",
       });
 
-      await LogService.markAsSent(log.id);
-    } catch (error: any) {
-      await LogService.markAsFailed(log.id, error);
+      try {
+        const html = await generateGuestStatusEmailHtml(
+          recipient.full_name,
+          guestName,
+          "rejected",
+          reviewerName,
+          hasGuestImage,
+        );
+
+        await sendEmail({
+          to: recipient.email,
+          subject: `Guest Re-approval Rejected - ${guestName}`,
+          text: `Your request to book "${guestName}" again was not approved.`,
+          html,
+          attachments,
+        });
+
+        await LogService.markAsSent(log.id);
+      } catch (error: any) {
+        await LogService.markAsFailed(log.id, error);
+      }
     }
   } catch (error) {
     console.error("Listener error (GUEST_REAPPROVAL_REJECTED):", error);

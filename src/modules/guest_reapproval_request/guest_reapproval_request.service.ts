@@ -296,6 +296,8 @@ class GuestReapprovalRequestService {
         requestId: request.id,
         requesterEmail: requester?.email,
         requesterName: requester?.full_name,
+        proposedHostId: request.proposed_host_id,
+        guestHostId: guest.host_id,
         guestImagePath,
       });
 
@@ -372,6 +374,8 @@ class GuestReapprovalRequestService {
         requestId: request.id,
         requesterEmail: requester?.email,
         requesterName: requester?.full_name,
+        proposedHostId: request.proposed_host_id,
+        guestHostId: guest.host_id,
         guestImagePath,
       });
 
