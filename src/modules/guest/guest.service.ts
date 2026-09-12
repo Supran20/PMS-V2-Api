@@ -101,6 +101,7 @@ class GuestService {
       // 2️⃣ Create Media (if file uploaded)
       // --------------------------------
       let mediaId: string | null = null;
+      let mediaPath: string | null = null;
 
       if (file) {
         // Generate clean media name from original filename
@@ -111,7 +112,7 @@ class GuestService {
           .toLowerCase()
           .replace(/\s+/g, "-");
 
-        const mediaPath = `/uploads/media/${file.filename}`;
+        mediaPath = `/uploads/media/${file.filename}`;
 
         const media = await Media.create(
           {
@@ -213,6 +214,7 @@ class GuestService {
         guestId: guest.id,
         guestName: guest.full_name,
         creatorName: creator.full_name,
+        guestImagePath: mediaId ? mediaPath : null,
       });
 
       return guest;

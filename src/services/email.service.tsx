@@ -40,6 +40,7 @@ export async function generateGuestApprovalEmailHtml(
   designation?: string,
   hostName?: string,
   creatorName?: string,
+  hasGuestImage?: boolean,
 ): Promise<string> {
   return render(
     <GuestApprovalEmail
@@ -48,6 +49,7 @@ export async function generateGuestApprovalEmailHtml(
       designation={designation}
       hostName={hostName}
       creatorName={creatorName}
+      hasGuestImage={hasGuestImage}
     />,
   );
 }
@@ -98,7 +100,9 @@ interface EmailOptions {
   text: string;
   html?: string;
   cc?: string[];
+  bcc?: string[];
   replyTo?: string;
+  attachments?: any[];
 }
 
 /**
@@ -112,10 +116,12 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
       from: `"Real Story Time" <${process.env.GMAIL_USER}>`,
       to: options.to,
       cc: options.cc,
+      bcc: options.bcc,
       replyTo: options.replyTo,
       subject: options.subject,
       text: options.text,
       html: options.html ?? `<p>${options.text}</p>`,
+      attachments: options.attachments,
     });
   } catch (error) {
     console.error("Email sending failed:", error);

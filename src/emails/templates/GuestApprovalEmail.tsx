@@ -19,6 +19,7 @@ interface GuestApprovalEmailProps {
   designation?: string;
   hostName?: string;
   creatorName?: string;
+  hasGuestImage?: boolean;
 }
 
 export default function GuestApprovalEmail({
@@ -27,6 +28,7 @@ export default function GuestApprovalEmail({
   designation,
   hostName,
   creatorName,
+  hasGuestImage,
 }: GuestApprovalEmailProps) {
   return (
     <Html>
@@ -52,6 +54,19 @@ export default function GuestApprovalEmail({
             <Heading className="text-2xl font-semibold mb-6 text-center">
               Guest Approval Request
             </Heading>
+
+            {hasGuestImage && (
+              <Section className="text-center mb-6">
+                <Img
+                  src="cid:guestImage"
+                  width="80"
+                  height="80"
+                  alt={guestName}
+                  className="mx-auto rounded-full"
+                  style={{ objectFit: "cover" }}
+                />
+              </Section>
+            )}
 
             <Text className="text-base mb-2">Dear Admin,</Text>
 

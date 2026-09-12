@@ -23,9 +23,8 @@ import {
 // ========================================
 eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
   try {
-    const { guestId, guestName, creatorName } = payload;
+    const { guestId, guestName, creatorName, guestImagePath } = payload; // ✅ pull it off payload
 
-    // Fetch guest with relations
     const guest = await Guest.findByPk(guestId, {
       include: [
         { model: User, as: "referrer", attributes: ["full_name"] },
@@ -38,7 +37,6 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
     const referredByName = (guest as any).referrer?.full_name ?? "N/A";
     const hostName = (guest as any).host?.full_name ?? "N/A";
 
-    // Get approvers
     const permission = await PermissionSettings.findOne({
       where: { permission_type: "guest_approver" },
     });
@@ -50,10 +48,28 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
       attributes: ["id", "full_name", "email"],
     });
 
+    // 🔹 Resolve the attachment ONCE per guest, not per approver
+    const attachments: any[] = [];
+    let hasGuestImage = false;
+
+    if (guestImagePath) {
+      const path = await import("path");
+      const fs = await import("fs");
+      const absolutePath = path.join(process.cwd(), guestImagePath);
+
+      if (fs.existsSync(absolutePath)) {
+        attachments.push({
+          filename: "guest-photo.jpg",
+          path: absolutePath,
+          cid: "guestImage",
+        });
+        hasGuestImage = true;
+      }
+    }
+
     for (const approver of approvers) {
       if (!approver.email) continue;
 
-      // 🔹 Create log (pending)
       const log = await LogService.createLog({
         event_type: "guest.created",
         recipient_email: approver.email,
@@ -67,6 +83,7 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
           guest.designation ?? undefined,
           hostName,
           creatorName,
+          hasGuestImage, // ✅ pass the flag through
         );
 
         await sendEmail({
@@ -74,14 +91,11 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
           subject: `Guest Approval Requested - ${guestName}`,
           text: `A new guest "${guestName}" requires approval.`,
           html,
-          //   cc: ["harikrishna@broadwayinfosys.com", "think4victory@gmail.com"],
-          //   replyTo: "harikrishna@broadwayinfosys.com",
+          attachments, // ✅ same attachment reused for every approver
         });
 
-        // ✅ Mark success
         await LogService.markAsSent(log.id);
       } catch (error: any) {
-        // ❌ Mark failed
         await LogService.markAsFailed(log.id, error);
       }
     }
@@ -89,7 +103,6 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
     console.error("Listener error (GUEST_CREATED):", error);
   }
 });
-
 // ========================================
 // GUEST APPROVED → Notify Host
 // ========================================
