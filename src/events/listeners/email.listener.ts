@@ -148,7 +148,8 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
 // ========================================
 eventBus.on(EVENTS.GUEST_APPROVED, async (payload: any) => {
   try {
-    const { guestName, hostEmail, hostName, approverName } = payload;
+    const { guestName, hostEmail, hostName, approverName, guestImagePath } =
+      payload; // ✅ add guestImagePath
 
     if (!hostEmail) return;
 
@@ -159,11 +160,31 @@ eventBus.on(EVENTS.GUEST_APPROVED, async (payload: any) => {
     });
 
     try {
+      // ✅ resolve attachment
+      const attachments: any[] = [];
+      let hasGuestImage = false;
+
+      if (guestImagePath) {
+        const path = await import("path");
+        const fs = await import("fs");
+        const absolutePath = path.join(process.cwd(), guestImagePath);
+
+        if (fs.existsSync(absolutePath)) {
+          attachments.push({
+            filename: "guest-photo.jpg",
+            path: absolutePath,
+            cid: "guestImage",
+          });
+          hasGuestImage = true;
+        }
+      }
+
       const html = await generateGuestStatusEmailHtml(
         hostName,
         guestName,
         "approved",
         approverName,
+        hasGuestImage, // ✅ new
       );
 
       await sendEmail({
@@ -171,6 +192,7 @@ eventBus.on(EVENTS.GUEST_APPROVED, async (payload: any) => {
         subject: `Guest Approved - ${guestName}`,
         text: `Your guest "${guestName}" has been approved.`,
         html,
+        attachments, // ✅ new
       });
 
       await LogService.markAsSent(log.id);
@@ -187,7 +209,8 @@ eventBus.on(EVENTS.GUEST_APPROVED, async (payload: any) => {
 // ========================================
 eventBus.on(EVENTS.GUEST_REJECTED, async (payload: any) => {
   try {
-    const { guestName, hostEmail, hostName, approverName } = payload;
+    const { guestName, hostEmail, hostName, approverName, guestImagePath } =
+      payload;
 
     if (!hostEmail) return;
 
@@ -198,11 +221,29 @@ eventBus.on(EVENTS.GUEST_REJECTED, async (payload: any) => {
     });
 
     try {
+      const attachments: any[] = [];
+      let hasGuestImage = false;
+
+      if (guestImagePath) {
+        const path = await import("path");
+        const fs = await import("fs");
+        const absolutePath = path.join(process.cwd(), guestImagePath);
+
+        if (fs.existsSync(absolutePath)) {
+          attachments.push({
+            filename: "guest-photo.jpg",
+            path: absolutePath,
+            cid: "guestImage",
+          });
+          hasGuestImage = true;
+        }
+      }
       const html = await generateGuestStatusEmailHtml(
         hostName,
         guestName,
         "rejected",
         approverName,
+        hasGuestImage,
       );
 
       await sendEmail({
@@ -210,6 +251,7 @@ eventBus.on(EVENTS.GUEST_REJECTED, async (payload: any) => {
         subject: `Guest Rejected - ${guestName}`,
         text: `Your guest "${guestName}" has been rejected.`,
         html,
+        attachments,
       });
 
       await LogService.markAsSent(log.id);
@@ -581,7 +623,13 @@ eventBus.on(EVENTS.GUEST_REAPPROVAL_REQUESTED, async (payload: any) => {
 // ========================================
 eventBus.on(EVENTS.GUEST_REAPPROVED, async (payload: any) => {
   try {
-    const { guestName, reviewerName, requesterEmail, requesterName } = payload;
+    const {
+      guestName,
+      reviewerName,
+      requesterEmail,
+      requesterName,
+      guestImagePath,
+    } = payload; // ✅ add guestImagePath
 
     if (!requesterEmail) return;
 
@@ -592,11 +640,31 @@ eventBus.on(EVENTS.GUEST_REAPPROVED, async (payload: any) => {
     });
 
     try {
+      // ✅ resolve attachment
+      const attachments: any[] = [];
+      let hasGuestImage = false;
+
+      if (guestImagePath) {
+        const path = await import("path");
+        const fs = await import("fs");
+        const absolutePath = path.join(process.cwd(), guestImagePath);
+
+        if (fs.existsSync(absolutePath)) {
+          attachments.push({
+            filename: "guest-photo.jpg",
+            path: absolutePath,
+            cid: "guestImage",
+          });
+          hasGuestImage = true;
+        }
+      }
+
       const html = await generateGuestStatusEmailHtml(
         requesterName ?? "there",
         guestName,
         "approved",
         reviewerName,
+        hasGuestImage, // ✅ new
       );
 
       await sendEmail({
@@ -604,6 +672,7 @@ eventBus.on(EVENTS.GUEST_REAPPROVED, async (payload: any) => {
         subject: `Guest Re-approved - ${guestName}`,
         text: `"${guestName}" has been re-approved and can now be booked.`,
         html,
+        attachments, // ✅ new
       });
 
       await LogService.markAsSent(log.id);
@@ -620,7 +689,13 @@ eventBus.on(EVENTS.GUEST_REAPPROVED, async (payload: any) => {
 // ========================================
 eventBus.on(EVENTS.GUEST_REAPPROVAL_REJECTED, async (payload: any) => {
   try {
-    const { guestName, reviewerName, requesterEmail, requesterName } = payload;
+    const {
+      guestName,
+      reviewerName,
+      requesterEmail,
+      requesterName,
+      guestImagePath,
+    } = payload; // ✅ add guestImagePath
 
     if (!requesterEmail) return;
 
@@ -631,11 +706,31 @@ eventBus.on(EVENTS.GUEST_REAPPROVAL_REJECTED, async (payload: any) => {
     });
 
     try {
+      // ✅ resolve attachment
+      const attachments: any[] = [];
+      let hasGuestImage = false;
+
+      if (guestImagePath) {
+        const path = await import("path");
+        const fs = await import("fs");
+        const absolutePath = path.join(process.cwd(), guestImagePath);
+
+        if (fs.existsSync(absolutePath)) {
+          attachments.push({
+            filename: "guest-photo.jpg",
+            path: absolutePath,
+            cid: "guestImage",
+          });
+          hasGuestImage = true;
+        }
+      }
+
       const html = await generateGuestStatusEmailHtml(
         requesterName ?? "there",
         guestName,
         "rejected",
         reviewerName,
+        hasGuestImage, // ✅ new
       );
 
       await sendEmail({
@@ -643,6 +738,7 @@ eventBus.on(EVENTS.GUEST_REAPPROVAL_REJECTED, async (payload: any) => {
         subject: `Guest Re-approval Rejected - ${guestName}`,
         text: `Your request to book "${guestName}" again was not approved.`,
         html,
+        attachments, // ✅ new
       });
 
       await LogService.markAsSent(log.id);

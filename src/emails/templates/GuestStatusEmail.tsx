@@ -18,6 +18,7 @@ interface GuestStatusEmailProps {
   guestName: string;
   status: "approved" | "rejected";
   adminName: string;
+  hasGuestImage?: boolean;
 }
 
 export default function GuestStatusEmail({
@@ -25,6 +26,7 @@ export default function GuestStatusEmail({
   guestName,
   status,
   adminName,
+  hasGuestImage,
 }: GuestStatusEmailProps) {
   const title = status === "approved" ? "Guest Approved" : "Guest Rejected";
 
@@ -51,6 +53,19 @@ export default function GuestStatusEmail({
             <Heading className="text-2xl font-semibold mb-6 text-center">
               {title}
             </Heading>
+
+            {hasGuestImage && (
+              <Section className="text-center mb-6">
+                <Img
+                  src="cid:guestImage"
+                  width="80"
+                  height="80"
+                  alt={guestName}
+                  className="mx-auto rounded-full"
+                  style={{ objectFit: "cover" }}
+                />
+              </Section>
+            )}
 
             <Text>Hello {hostName},</Text>
 

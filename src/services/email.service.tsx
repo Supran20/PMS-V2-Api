@@ -61,6 +61,7 @@ export async function generateGuestStatusEmailHtml(
   guestName: string,
   status: "approved" | "rejected",
   adminName: string,
+  hasGuestImage?: boolean,
 ): Promise<string> {
   return render(
     <GuestStatusEmail
@@ -68,6 +69,7 @@ export async function generateGuestStatusEmailHtml(
       guestName={guestName}
       status={status}
       adminName={adminName}
+      hasGuestImage={hasGuestImage}
     />,
   );
 }
@@ -144,7 +146,7 @@ export async function generateGuestReapprovalRequestEmailHtml(
       requestedByName={requestedByName}
       triggerSource={triggerSource}
       proposedHostName={proposedHostName}
-      hasGuestImage={hasGuestImage} 
+      hasGuestImage={hasGuestImage}
     />,
   );
 }
