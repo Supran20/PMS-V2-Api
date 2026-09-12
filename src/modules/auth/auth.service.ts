@@ -247,14 +247,13 @@ export class AuthService {
           as: "roles",
           attributes: ["role_name"],
           through: { attributes: [] },
-          include: [
-            {
-              model: Permission,
-              as: "permissions",
-              attributes: ["permission_type"],
-              through: { attributes: [] },
-            },
-          ],
+          // no nested Permission include here anymore — roles are labels only
+        },
+        {
+          model: Permission,
+          as: "permissions",
+          attributes: ["permission_type"],
+          through: { attributes: [] }, // pulls from user_permissions directly
         },
         {
           model: Media,
@@ -268,13 +267,8 @@ export class AuthService {
 
     const roles = user.roles?.map((r) => r.role_name) ?? [];
 
-    const permissions = Array.from(
-      new Set(
-        user.roles?.flatMap(
-          (r) => r.permissions?.map((p) => p.permission_type) ?? [],
-        ),
-      ),
-    );
+    // Row-level, user-scoped permissions — the actual source of truth.
+    const permissions = user.permissions?.map((p) => p.permission_type) ?? [];
 
     return {
       ...user.toJSON(),

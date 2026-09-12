@@ -7,27 +7,34 @@ import validate from "../../middleware/validate.middleware";
 
 const router = Router();
 
+router.use(authenticate);
+
 // Create a tag
-router.post("/", authenticate, validate(createTagSchema), TagController.create);
+router.post(
+  "/",
+  authorize("tags.create"),
+  validate(createTagSchema),
+  TagController.create,
+);
 
 // Get all tags
-router.get("/", authenticate, TagController.getAll);
+router.get("/", authorize("tags.view"), TagController.getAll);
 
 // Get tag by ID
-router.get("/:id", authenticate, TagController.getById);
+router.get("/:id", authorize("tags.view"), TagController.getById);
 
 //Get tag by slug
-router.get("/slug/:slug", authenticate, TagController.getTagBySlug);
+router.get("/slug/:slug", authorize("tags.view"), TagController.getTagBySlug);
 
 // Update tag by ID
 router.put(
   "/:id",
-  authenticate,
+  authorize("tags.update"),
   validate(updateTagSchema),
   TagController.update,
 );
 
 // Delete tag by ID
-router.delete("/:id", TagController.delete);
+router.delete("/:id", authorize("tags.delete"), TagController.delete);
 
 export default router;

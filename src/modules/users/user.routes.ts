@@ -5,46 +5,19 @@ import { authenticate } from "../../middleware/authenticate.middleware";
 import { uploadMedia } from "../../middleware/upload.media.middleware";
 
 const router = Router();
+router.use(authenticate);
 
-router.post(
-  "/",
-  authenticate,
-  // authorize("user.manage"),
-  uploadMedia,
-  UserController.create,
-);
+router.post("/", authorize("users.create"), uploadMedia, UserController.create);
 
-router.get(
-  "/",
-  authenticate,
-  // authorize("user.manage"),
+router.get("/", authorize("users.view"), UserController.getAll);
 
-  UserController.getAll,
-);
+router.get("/hosts", authorize("users.view"), UserController.getHosts);
+router.get("/admins", authorize("users.view"), UserController.getAdmins);
 
-router.get("/hosts", authenticate, UserController.getHosts);
-router.get("/admins", authenticate, UserController.getAdmins);
+router.get("/:id", authorize("users.view"), UserController.getById);
 
-router.get(
-  "/:id",
-  authenticate,
-  // authorize("user.manage"),
-  UserController.getById,
-);
+router.put("/:id", uploadMedia, authorize("users.edit"), UserController.update);
 
-router.put(
-  "/:id",
-  authenticate,
-  uploadMedia,
-  // authorize("user.manage"),
-  UserController.update,
-);
-
-router.delete(
-  "/:id",
-  authenticate,
-  // authorize("user.manage"),
-  UserController.delete,
-);
+router.delete("/:id", authorize("users.delete"), UserController.delete);
 
 export default router;

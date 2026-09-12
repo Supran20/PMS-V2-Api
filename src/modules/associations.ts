@@ -2,6 +2,7 @@ import User from "./users/user.model";
 import Role from "./roles/role.model";
 import Permission from "./permissions/permission.model";
 import UserRole from "./user_roles/user_role.model";
+import UserPermission from "./user_permissions/user_permissions.model";
 import RolePermission from "./role_permissions/role_permission.model";
 import Tags from "./tags/tags.model";
 import Media from "./media/media.model";
@@ -48,6 +49,21 @@ export const setupAssociations = () => {
     through: RolePermission,
     foreignKey: "permission_id",
     as: "roles",
+  });
+
+  //------------------------------------------------
+  // USER ↔ PERMISSION
+  //------------------------------------------------
+  User.belongsToMany(Permission, {
+    through: UserPermission,
+    foreignKey: "user_id",
+    as: "permissions",
+  });
+
+  Permission.belongsToMany(User, {
+    through: UserPermission,
+    foreignKey: "permission_id",
+    as: "users",
   });
 
   //------------------------------------------------

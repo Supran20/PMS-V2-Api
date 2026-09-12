@@ -1,9 +1,11 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../../config/db";
 import Role from "../roles/role.model";
+import Permission from "../permissions/permission.model";
 import {
   BelongsToManyAddAssociationMixin,
   BelongsToManySetAssociationsMixin,
+  BelongsToManyGetAssociationsMixin,
 } from "sequelize";
 import { UserAttributes, UserCreationAttributes } from "./user.interface";
 
@@ -35,6 +37,11 @@ export class User
   declare roles?: Role[];
   declare addRole: BelongsToManyAddAssociationMixin<Role, string>;
   declare setRoles: BelongsToManySetAssociationsMixin<Role, string>;
+
+  declare permissions?: Permission[];
+  declare getPermissions: BelongsToManyGetAssociationsMixin<Permission>;
+  declare addPermission: BelongsToManyAddAssociationMixin<Permission, string>;
+  declare setPermissions: BelongsToManySetAssociationsMixin<Permission, string>;
 }
 
 User.init(

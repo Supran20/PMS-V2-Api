@@ -9,22 +9,25 @@ export const authorize = (requiredPermissions: string | string[]) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const userPermissions = Array.from(
-      new Set(
-        user.roles?.flatMap(
-          (role: any) =>
-            role.permissions?.map((p: any) => p.permission_type) ?? [],
-        ),
-      ),
+    // Super Admin bypasses ALL permission checks — this is intentional and
+    // not driven by seeded permission data (Super Admin has none seeded).
+    const isSuperAdmin = user.roles?.some(
+      (role: any) => role.role_name === "Super Admin",
+    );
+
+    if (isSuperAdmin) {
+      return next();
+    }
+
+    const userPermissions = new Set(
+      user.permissions?.map((p: any) => p.permission_type) ?? [],
     );
 
     const required = Array.isArray(requiredPermissions)
       ? requiredPermissions
       : [requiredPermissions];
 
-    const hasPermission = required.every((perm) =>
-      userPermissions.includes(perm),
-    );
+    const hasPermission = required.every((perm) => userPermissions.has(perm));
 
     if (!hasPermission) {
       return res.status(403).json({ message: "Forbidden" });
