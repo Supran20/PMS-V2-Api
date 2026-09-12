@@ -3,10 +3,12 @@ import { EVENTS } from "../events.constants";
 
 import LogService from "../../modules/log/log.service";
 import User from "../../modules/users/user.model";
+import Role from "../../modules/roles/role.model";
 import Guest from "../../modules/guest/guest.model";
 import Interview from "../../modules/interview/interview.model";
 import Studio from "../../modules/studio/studio.model";
 import PermissionSettings from "../../modules/settings/permission_settings/permission_set.model";
+import GuestReapprovalRequest from "../../modules/guest_reapproval_request/guest_reapproval_request.model";
 
 import {
   sendEmail,
@@ -18,17 +20,39 @@ import {
   generateGuestPublishedEmailHtml,
 } from "../../services/email.service";
 
+/**
+ * Helper to fetch users who have the "Admin" role, excluding those with the "Super Admin" role.
+ */
+async function getAdminNotSuperAdminUsers(): Promise<User[]> {
+  const users = await User.findAll({
+    include: [
+      {
+        model: Role,
+        as: "roles",
+        attributes: ["id", "role_name"],
+        through: { attributes: [] },
+      },
+    ],
+    attributes: ["id", "full_name", "email"],
+  });
+
+  return users.filter((user) => {
+    const roleNames = user.roles?.map((r) => r.role_name) ?? [];
+    return roleNames.includes("Admin") && !roleNames.includes("Super Admin");
+  });
+}
+
 // ========================================
-// GUEST CREATED → Notify Approvers
+// GUEST CREATED → Notify Admin (not Super Admin) & Assigned Host
 // ========================================
 eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
   try {
-    const { guestId, guestName, creatorName, guestImagePath } = payload; // ✅ pull it off payload
+    const { guestId, guestName, creatorName, guestImagePath } = payload;
 
     const guest = await Guest.findByPk(guestId, {
       include: [
         { model: User, as: "referrer", attributes: ["full_name"] },
-        { model: User, as: "host", attributes: ["full_name"] },
+        { model: User, as: "host", attributes: ["id", "full_name", "email"] },
       ],
     });
 
@@ -37,18 +61,36 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
     const referredByName = (guest as any).referrer?.full_name ?? "N/A";
     const hostName = (guest as any).host?.full_name ?? "N/A";
 
-    const permission = await PermissionSettings.findOne({
-      where: { permission_type: "guest_approver" },
-    });
+    const adminUsers = await getAdminNotSuperAdminUsers();
 
-    if (!permission || !permission.user_ids?.length) return;
+    const recipientsMap = new Map<
+      string,
+      { id: string; full_name: string; email: string }
+    >();
 
-    const approvers = await User.findAll({
-      where: { id: permission.user_ids },
-      attributes: ["id", "full_name", "email"],
-    });
+    for (const admin of adminUsers) {
+      if (admin.email) {
+        recipientsMap.set(admin.email.trim().toLowerCase(), {
+          id: admin.id,
+          full_name: admin.full_name,
+          email: admin.email.trim(),
+        });
+      }
+    }
 
-    // 🔹 Resolve the attachment ONCE per guest, not per approver
+    const host = (guest as any).host;
+    if (host?.email) {
+      recipientsMap.set(host.email.trim().toLowerCase(), {
+        id: host.id,
+        full_name: host.full_name,
+        email: host.email.trim(),
+      });
+    }
+
+    const recipients = Array.from(recipientsMap.values());
+    if (!recipients.length) return;
+
+    // 🔹 Resolve attachment ONCE per guest
     const attachments: any[] = [];
     let hasGuestImage = false;
 
@@ -67,12 +109,10 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
       }
     }
 
-    for (const approver of approvers) {
-      if (!approver.email) continue;
-
+    for (const recipient of recipients) {
       const log = await LogService.createLog({
         event_type: "guest.created",
-        recipient_email: approver.email,
+        recipient_email: recipient.email,
         status: "pending",
       });
 
@@ -83,15 +123,15 @@ eventBus.on(EVENTS.GUEST_CREATED, async (payload: any) => {
           guest.designation ?? undefined,
           hostName,
           creatorName,
-          hasGuestImage, // ✅ pass the flag through
+          hasGuestImage,
         );
 
         await sendEmail({
-          to: approver.email,
+          to: recipient.email,
           subject: `Guest Approval Requested - ${guestName}`,
           text: `A new guest "${guestName}" requires approval.`,
           html,
-          attachments, // ✅ same attachment reused for every approver
+          attachments,
         });
 
         await LogService.markAsSent(log.id);
@@ -182,13 +222,14 @@ eventBus.on(EVENTS.GUEST_REJECTED, async (payload: any) => {
 });
 
 // ========================================
-// INTERVIEW CREATED → Notify Host (+CC) and Guest
+// INTERVIEW CREATED → Notify Admin (not Super Admin), Host (+CC/BCC) and Guest
 // ========================================
 eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
   try {
     const {
       guestName,
       guestEmail,
+      hostId,
       hostEmail,
       hostName,
       studioName,
@@ -200,11 +241,39 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
       creatorId,
     } = payload;
 
-    // Host + CC notification
+    // 1. Internal notification → Admin users (not Super Admin) & assigned Host
+    const adminUsers = await getAdminNotSuperAdminUsers();
+
+    const recipientsMap = new Map<
+      string,
+      { id: string; full_name: string; email: string }
+    >();
+
+    for (const admin of adminUsers) {
+      if (admin.email) {
+        recipientsMap.set(admin.email.trim().toLowerCase(), {
+          id: admin.id,
+          full_name: admin.full_name,
+          email: admin.email.trim(),
+        });
+      }
+    }
+
     if (hostEmail) {
+      recipientsMap.set(hostEmail.trim().toLowerCase(), {
+        id: hostId ?? "",
+        full_name: hostName ?? "Host",
+        email: hostEmail.trim(),
+      });
+    }
+
+    const internalRecipients = Array.from(recipientsMap.values());
+
+    for (let i = 0; i < internalRecipients.length; i++) {
+      const recipient = internalRecipients[i];
       const log = await LogService.createLog({
         event_type: "interview.created",
-        recipient_email: hostEmail,
+        recipient_email: recipient.email,
         status: "pending",
         created_by: creatorId,
       });
@@ -212,7 +281,7 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
       try {
         const html = await generateInterviewEmailHtml(
           "New Interview Assigned",
-          hostName,
+          recipient.full_name,
           guestName,
           String(interviewDate ?? ""),
           startTime ?? "",
@@ -220,13 +289,19 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
           studioName,
         );
 
+        // Attach CC/BCC emails only on the host email (or first email send) to avoid duplicate CC/BCC deliveries
+        const isHostRecipient =
+          hostEmail &&
+          recipient.email.toLowerCase() === hostEmail.trim().toLowerCase();
+        const attachCcBcc = isHostRecipient || (i === 0 && !hostEmail);
+
         await sendEmail({
-          to: hostEmail,
-          subject: `New Interview Assigned - ${guestName}`,
-          text: `You have a new interview scheduled with ${guestName}`,
+          to: recipient.email,
+          subject: `New Interview Scheduled - ${guestName}`,
+          text: `A new interview has been scheduled with ${guestName}`,
           html,
-          cc: ccEmails,
-          bcc: bccEmails,
+          cc: attachCcBcc ? ccEmails : undefined,
+          bcc: attachCcBcc ? bccEmails : undefined,
         });
 
         await LogService.markAsSent(log.id);
@@ -235,15 +310,11 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
       }
     }
 
-    // ========================================
-    // Guest notification — separate template, own log entry.
-    // Runs independently: failure here must never affect the
-    // host/cc send above, and vice versa.
-    // ========================================
+    // 2. Guest notification — separate template (GuestInterviewEmail), own log entry.
     if (guestEmail) {
       const guestLog = await LogService.createLog({
         event_type: "interview.guest_notified",
-        recipient_email: guestEmail,
+        recipient_email: guestEmail.trim(),
         status: "pending",
         created_by: creatorId,
       });
@@ -259,7 +330,7 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
         );
 
         await sendEmail({
-          to: guestEmail,
+          to: guestEmail.trim(),
           subject: `You're Confirmed - Real Story Time Interview`,
           text: `Hi ${guestName}, you're confirmed for your interview with Real Story Time.`,
           html: guestHtml,
@@ -354,30 +425,85 @@ eventBus.on(EVENTS.INTERVIEW_PUBLISHED, async (payload: any) => {
 });
 
 // ========================================
-// GUEST REAPPROVAL REQUESTED → Notify Approvers
+// GUEST REAPPROVAL REQUESTED → Notify Admin (not Super Admin) & Assigned Host
 // ========================================
 eventBus.on(EVENTS.GUEST_REAPPROVAL_REQUESTED, async (payload: any) => {
   try {
-    const { guestName, requestedByName, triggerSource, proposedHostName } =
-      payload;
+    const {
+      guestName,
+      requestedByName,
+      triggerSource,
+      proposedHostName,
+      requestId,
+      guestId,
+    } = payload;
 
-    const permission = await PermissionSettings.findOne({
-      where: { permission_type: "guest_approver" },
-    });
+    const adminUsers = await getAdminNotSuperAdminUsers();
 
-    if (!permission || !permission.user_ids?.length) return;
+    const request: any = requestId
+      ? await GuestReapprovalRequest.findByPk(requestId, {
+          include: [
+            {
+              model: User,
+              as: "proposedHost",
+              attributes: ["id", "full_name", "email"],
+            },
+            {
+              model: Guest,
+              as: "guest",
+              include: [
+                {
+                  model: User,
+                  as: "host",
+                  attributes: ["id", "full_name", "email"],
+                },
+              ],
+            },
+          ],
+        })
+      : null;
 
-    const approvers = await User.findAll({
-      where: { id: permission.user_ids },
-      attributes: ["id", "full_name", "email"],
-    });
+    let host = request?.proposedHost || request?.guest?.host;
 
-    for (const approver of approvers) {
-      if (!approver.email) continue;
+    if (!host && guestId) {
+      const guest = await Guest.findByPk(guestId, {
+        include: [
+          { model: User, as: "host", attributes: ["id", "full_name", "email"] },
+        ],
+      });
+      host = (guest as any)?.host;
+    }
 
+    const recipientsMap = new Map<
+      string,
+      { id: string; full_name: string; email: string }
+    >();
+
+    for (const admin of adminUsers) {
+      if (admin.email) {
+        recipientsMap.set(admin.email.trim().toLowerCase(), {
+          id: admin.id,
+          full_name: admin.full_name,
+          email: admin.email.trim(),
+        });
+      }
+    }
+
+    if (host?.email) {
+      recipientsMap.set(host.email.trim().toLowerCase(), {
+        id: host.id,
+        full_name: host.full_name,
+        email: host.email.trim(),
+      });
+    }
+
+    const recipients = Array.from(recipientsMap.values());
+    if (!recipients.length) return;
+
+    for (const recipient of recipients) {
       const log = await LogService.createLog({
         event_type: "guest.reapproval_requested",
-        recipient_email: approver.email,
+        recipient_email: recipient.email,
         status: "pending",
       });
 
@@ -390,7 +516,7 @@ eventBus.on(EVENTS.GUEST_REAPPROVAL_REQUESTED, async (payload: any) => {
         );
 
         await sendEmail({
-          to: approver.email,
+          to: recipient.email,
           subject: `Guest Re-approval Requested - ${guestName}`,
           text: `Guest "${guestName}" requires re-approval before further booking.`,
           html,

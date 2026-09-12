@@ -24,7 +24,12 @@ interface InterviewEmailProps {
 }
 
 const formatTime = (time: string) => {
-  const [hours, minutes] = time.split(":").map(Number);
+  if (!time) return "";
+  const parts = time.split(":");
+  if (parts.length < 2) return time;
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  if (isNaN(hours) || isNaN(minutes)) return time;
 
   return new Date(0, 0, 0, hours, minutes).toLocaleTimeString("en-US", {
     hour: "2-digit",

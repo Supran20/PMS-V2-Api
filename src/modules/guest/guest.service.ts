@@ -215,6 +215,7 @@ class GuestService {
         guestName: guest.full_name,
         creatorName: creator.full_name,
         guestImagePath: mediaId ? mediaPath : null,
+        hostId,
       });
 
       return guest;
@@ -358,14 +359,20 @@ class GuestService {
       throw new ApiError(400, "Guest already approved");
     }
 
-    const permission = await PermissionSettings.findOne({
-      where: { permission_type: "guest_approver" },
-    });
+    const isAdminOrSuperAdmin = approver?.roles?.some(
+      (r: any) => r.role_name === "Admin" || r.role_name === "Super Admin",
+    );
 
-    const allowedUserIds = permission?.user_ids ?? [];
+    if (!isAdminOrSuperAdmin) {
+      const permission = await PermissionSettings.findOne({
+        where: { permission_type: "guest_approver" },
+      });
 
-    if (!allowedUserIds.includes(approver.id)) {
-      throw new ApiError(403, "You are not allowed to approve guest");
+      const allowedUserIds = permission?.user_ids ?? [];
+
+      if (!allowedUserIds.includes(approver.id)) {
+        throw new ApiError(403, "You are not allowed to approve guest");
+      }
     }
 
     await guest.update({
@@ -391,14 +398,20 @@ class GuestService {
       throw new ApiError(404, "Guest not found");
     }
 
-    const permission = await PermissionSettings.findOne({
-      where: { permission_type: "guest_approver" },
-    });
+    const isAdminOrSuperAdmin = approver?.roles?.some(
+      (r: any) => r.role_name === "Admin" || r.role_name === "Super Admin",
+    );
 
-    const allowedUserIds = permission?.user_ids ?? [];
+    if (!isAdminOrSuperAdmin) {
+      const permission = await PermissionSettings.findOne({
+        where: { permission_type: "guest_approver" },
+      });
 
-    if (!allowedUserIds.includes(approver.id)) {
-      throw new ApiError(403, "You are not allowed to reject guest");
+      const allowedUserIds = permission?.user_ids ?? [];
+
+      if (!allowedUserIds.includes(approver.id)) {
+        throw new ApiError(403, "You are not allowed to reject guest");
+      }
     }
 
     await guest.update({
