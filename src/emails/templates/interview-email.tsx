@@ -21,6 +21,7 @@ interface InterviewEmailProps {
   startTime: string;
   endTime: string;
   studio: string;
+  hasGuestImage?: boolean;
 }
 
 const formatTime = (time: string) => {
@@ -46,6 +47,7 @@ export default function InterviewEmail({
   startTime,
   endTime,
   studio,
+  hasGuestImage,
 }: InterviewEmailProps) {
   return (
     <Html>
@@ -72,6 +74,19 @@ export default function InterviewEmail({
             <Heading className="text-2xl font-semibold mb-6 text-center">
               {title}
             </Heading>
+
+            {hasGuestImage && (
+              <Section className="text-center mb-6">
+                <Img
+                  src="cid:guestImage"
+                  width="80"
+                  height="80"
+                  alt={guestName}
+                  className="mx-auto rounded-full"
+                  style={{ objectFit: "cover" }}
+                />
+              </Section>
+            )}
 
             <Text className="text-base mb-2">Hello {hostName},</Text>
 

@@ -20,6 +20,7 @@ export async function generateInterviewEmailHtml(
   startTime: string,
   endTime: string,
   studio: string,
+  hasGuestImage?: boolean,
 ): Promise<string> {
   return await render(
     <InterviewEmail
@@ -30,6 +31,7 @@ export async function generateInterviewEmailHtml(
       startTime={startTime}
       endTime={endTime}
       studio={studio}
+      hasGuestImage={hasGuestImage}
     />,
   );
 }
@@ -134,6 +136,7 @@ export async function generateGuestReapprovalRequestEmailHtml(
   requestedByName: string,
   triggerSource: "duplicate_guest_attempt" | "repeat_booking",
   proposedHostName?: string,
+  hasGuestImage?: boolean,
 ): Promise<string> {
   return render(
     <GuestReapprovalRequestEmail
@@ -141,6 +144,7 @@ export async function generateGuestReapprovalRequestEmailHtml(
       requestedByName={requestedByName}
       triggerSource={triggerSource}
       proposedHostName={proposedHostName}
+      hasGuestImage={hasGuestImage} 
     />,
   );
 }
@@ -152,6 +156,7 @@ export async function generateGuestInterviewEmailHtml(
   startTime: string,
   endTime: string,
   studio: string,
+  hasGuestImage: boolean,
 ): Promise<string> {
   return await render(
     <GuestInterviewEmail

@@ -142,6 +142,14 @@ class GuestReapprovalRequestService {
           : Promise.resolve(null),
       ]);
 
+      let guestImagePath: string | null = null;
+      if (guest?.profile_image) {
+        const media = await Media.findByPk(guest.profile_image, {
+          transaction,
+        });
+        guestImagePath = media?.path ?? null;
+      }
+
       eventBus.emit(EVENTS.GUEST_REAPPROVAL_REQUESTED, {
         requestId: request.id,
         guestId,
@@ -149,6 +157,7 @@ class GuestReapprovalRequestService {
         requestedByName: requester?.full_name ?? "Unknown User",
         triggerSource,
         proposedHostName: proposedHost?.full_name,
+        guestImagePath,
       });
     }
 

@@ -239,6 +239,7 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
       ccEmails, // ← resolved per-interview in interview.service.ts (cc_user_ids)
       bccEmails,
       creatorId,
+      guestImagePath,
     } = payload;
 
     // 1. Internal notification → Admin users (not Super Admin) & assigned Host
@@ -248,6 +249,24 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
       string,
       { id: string; full_name: string; email: string }
     >();
+
+    const attachments: any[] = [];
+    let hasGuestImage = false;
+
+    if (guestImagePath) {
+      const path = await import("path");
+      const fs = await import("fs");
+      const absolutePath = path.join(process.cwd(), guestImagePath);
+
+      if (fs.existsSync(absolutePath)) {
+        attachments.push({
+          filename: "guest-photo.jpg",
+          path: absolutePath,
+          cid: "guestImage",
+        });
+        hasGuestImage = true;
+      }
+    }
 
     for (const admin of adminUsers) {
       if (admin.email) {
@@ -287,6 +306,7 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
           startTime ?? "",
           endTime ?? "",
           studioName,
+          hasGuestImage,
         );
 
         // Attach CC/BCC emails only on the host email (or first email send) to avoid duplicate CC/BCC deliveries
@@ -302,6 +322,7 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
           html,
           cc: attachCcBcc ? ccEmails : undefined,
           bcc: attachCcBcc ? bccEmails : undefined,
+          attachments,
         });
 
         await LogService.markAsSent(log.id);
@@ -327,6 +348,7 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
           startTime ?? "",
           endTime ?? "",
           studioName,
+          hasGuestImage,
         );
 
         await sendEmail({
@@ -334,6 +356,7 @@ eventBus.on(EVENTS.INTERVIEW_CREATED, async (payload: any) => {
           subject: `You're Confirmed - Real Story Time Interview`,
           text: `Hi ${guestName}, you're confirmed for your interview with Real Story Time.`,
           html: guestHtml,
+          attachments,
         });
 
         await LogService.markAsSent(guestLog.id);
@@ -436,6 +459,7 @@ eventBus.on(EVENTS.GUEST_REAPPROVAL_REQUESTED, async (payload: any) => {
       proposedHostName,
       requestId,
       guestId,
+      guestImagePath,
     } = payload;
 
     const adminUsers = await getAdminNotSuperAdminUsers();
@@ -479,6 +503,24 @@ eventBus.on(EVENTS.GUEST_REAPPROVAL_REQUESTED, async (payload: any) => {
       { id: string; full_name: string; email: string }
     >();
 
+    const attachments: any[] = [];
+    let hasGuestImage = false;
+
+    if (guestImagePath) {
+      const path = await import("path");
+      const fs = await import("fs");
+      const absolutePath = path.join(process.cwd(), guestImagePath);
+
+      if (fs.existsSync(absolutePath)) {
+        attachments.push({
+          filename: "guest-photo.jpg",
+          path: absolutePath,
+          cid: "guestImage",
+        });
+        hasGuestImage = true;
+      }
+    }
+
     for (const admin of adminUsers) {
       if (admin.email) {
         recipientsMap.set(admin.email.trim().toLowerCase(), {
@@ -513,6 +555,7 @@ eventBus.on(EVENTS.GUEST_REAPPROVAL_REQUESTED, async (payload: any) => {
           requestedByName,
           triggerSource,
           proposedHostName,
+          hasGuestImage,
         );
 
         await sendEmail({
@@ -520,6 +563,7 @@ eventBus.on(EVENTS.GUEST_REAPPROVAL_REQUESTED, async (payload: any) => {
           subject: `Guest Re-approval Requested - ${guestName}`,
           text: `Guest "${guestName}" requires re-approval before further booking.`,
           html,
+          attachments,
         });
 
         await LogService.markAsSent(log.id);
