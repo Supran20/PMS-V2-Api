@@ -1,13 +1,14 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../../config/db";
 import { GuestAttributes, GuestCreationAttributes } from "./guest.interface";
+import Channel from "../admin/channel/channel.model";
 
 class Guest
   extends Model<GuestAttributes, GuestCreationAttributes>
   implements GuestAttributes
 {
   declare id: string;
-
+  declare channel_id: string;
   declare full_name: string;
   declare designation: string | null;
   declare slug: string;
@@ -33,6 +34,7 @@ class Guest
 
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
+  declare channel?: Channel;
 }
 
 Guest.init(
@@ -41,6 +43,13 @@ Guest.init(
       type: DataTypes.UUID,
       primaryKey: true,
       defaultValue: DataTypes.UUIDV4,
+    },
+    channel_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: { model: "channels", key: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
     },
 
     full_name: {

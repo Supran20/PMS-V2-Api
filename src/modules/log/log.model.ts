@@ -2,13 +2,14 @@ import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../../config/db";
 import { LogAttributes, LogCreationAttributes } from "./log.interface";
 import User from "../users/user.model";
+import Channel from "../admin/channel/channel.model";
 
 class Log
   extends Model<LogAttributes, LogCreationAttributes>
   implements LogAttributes
 {
   declare id: string;
-
+  declare channel_id: string;
   declare event_type: string;
   declare recipient_email: string;
   declare status: "pending" | "sent" | "failed";
@@ -25,6 +26,7 @@ class Log
   // Associations
   declare creator?: User;
   declare updater?: User;
+  declare channel?: Channel;
 }
 
 Log.init(
@@ -34,7 +36,13 @@ Log.init(
       primaryKey: true,
       defaultValue: DataTypes.UUIDV4,
     },
-
+    channel_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: { model: "channels", key: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
+    },
     event_type: {
       type: DataTypes.STRING,
       allowNull: false,

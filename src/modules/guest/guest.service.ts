@@ -116,6 +116,7 @@ class GuestService {
 
         const media = await Media.create(
           {
+            channel_id: data.channel_id ?? creator.channel_id,
             media_name: sanitizedMediaName,
             path: mediaPath,
             type: file.mimetype,
@@ -196,6 +197,7 @@ class GuestService {
       const guest = await Guest.create(
         {
           ...data,
+          channel_id: data.channel_id ?? creator.channel_id,
           slug,
           profile_image: mediaId,
           host_id: hostId,
@@ -487,6 +489,7 @@ class GuestService {
 
         const media = await Media.create(
           {
+            channel_id: data.channel_id ?? user.channel_id ?? guest.channel_id,
             media_name: sanitizedMediaName,
             path: mediaPath,
             type: file.mimetype,

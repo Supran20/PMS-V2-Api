@@ -2,12 +2,14 @@ import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../../config/db";
 import { StudioAttributes, StudioCreationAttributes } from "./studio.interface";
 import User from "../users/user.model";
+import Channel from "../admin/channel/channel.model";
 
 class Studio
   extends Model<StudioAttributes, StudioCreationAttributes>
   implements StudioAttributes
 {
   declare id: string;
+  declare channel_id: string;
   declare studio_name: string;
   declare address: string | null;
   declare slug: string;
@@ -19,6 +21,7 @@ class Studio
   declare readonly updated_at: Date;
 
   declare creator?: User;
+  declare channel?: Channel;
 }
 
 Studio.init(
@@ -28,7 +31,13 @@ Studio.init(
       primaryKey: true,
       defaultValue: DataTypes.UUIDV4,
     },
-
+    channel_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: { model: "channels", key: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE", // Log uses CASCADE too — that's already decided
+    },
     studio_name: {
       type: DataTypes.STRING,
       allowNull: false,

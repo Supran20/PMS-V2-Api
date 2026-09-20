@@ -14,6 +14,9 @@ import Settings from "./settings/settings.model";
 import PermissionSettings from "./settings/permission_settings/permission_set.model";
 import GuestReapprovalRequest from "./guest_reapproval_request/guest_reapproval_request.model";
 import Log from "./log/log.model";
+import Channel from "./admin/channel/channel.model";
+import SubscriptionPlan from "./admin/subscription_plan/subscription_plan.model";
+import PlatformAdmin from "./admin/platform_admin/platform_admin.model";
 
 export const setupAssociations = () => {
   User.belongsTo(Media, {
@@ -345,4 +348,57 @@ export const setupAssociations = () => {
     foreignKey: "updated_by",
     as: "updater",
   });
+
+  //------------------------------------------------
+  // CHANNEL ↔ SUBSCRIPTION PLAN
+  //------------------------------------------------
+  Channel.belongsTo(SubscriptionPlan, {
+    foreignKey: "subscription_plan_id",
+    as: "subscriptionPlan",
+    onDelete: "SET NULL",
+  });
+  SubscriptionPlan.hasMany(Channel, {
+    foreignKey: "subscription_plan_id",
+    as: "channels",
+  });
+
+  //------------------------------------------------
+  // PLATFORM ADMIN ↔ USER
+  //------------------------------------------------
+  PlatformAdmin.belongsTo(User, {
+    foreignKey: "user_id",
+    as: "user",
+    onDelete: "CASCADE",
+  });
+  User.hasOne(PlatformAdmin, {
+    foreignKey: "user_id",
+    as: "platformAdmin",
+  });
+
+  //------------------------------------------------
+  // CHANNEL ↔ TENANTED MODELS (repeat pattern for all 8)
+  //------------------------------------------------
+  Channel.hasMany(User, { foreignKey: "channel_id", as: "users" });
+  User.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
+
+  Channel.hasMany(Guest, { foreignKey: "channel_id", as: "guests" });
+  Guest.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
+
+  Channel.hasMany(GuestNote, { foreignKey: "channel_id", as: "guestNotes" });
+  GuestNote.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
+
+  Channel.hasMany(Studio, { foreignKey: "channel_id", as: "studios" });
+  Studio.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
+
+  Channel.hasMany(Interview, { foreignKey: "channel_id", as: "interviews" });
+  Interview.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
+
+  Channel.hasMany(Media, { foreignKey: "channel_id", as: "media" });
+  Media.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
+
+  Channel.hasMany(Tags, { foreignKey: "channel_id", as: "tags" });
+  Tags.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
+
+  Channel.hasMany(Log, { foreignKey: "channel_id", as: "logs" });
+  Log.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
 };

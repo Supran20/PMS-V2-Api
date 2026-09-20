@@ -1,5 +1,6 @@
 export interface IMedia {
   id: string;
+  channel_id: string;
   media_name: string | null;
   path: string | null;
   type: string | null;

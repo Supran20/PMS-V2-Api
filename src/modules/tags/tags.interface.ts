@@ -1,5 +1,6 @@
 export interface ITag {
   id: string;
+  channel_id: string;
   tag_name: string;
   slug: string;
 

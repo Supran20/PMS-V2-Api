@@ -8,13 +8,14 @@ import { InterviewStatus } from "../../constants/interviewStatus";
 import Guest from "../guest/guest.model";
 import User from "../users/user.model";
 import Studio from "../studio/studio.model";
+import Channel from "../admin/channel/channel.model";
 
 class Interview
   extends Model<InterviewAttributes, InterviewCreationAttributes>
   implements InterviewAttributes
 {
   declare id: string;
-
+  declare channel_id: string;
   declare guest_id: string;
   declare host_id: string;
   declare studio_id: string;
@@ -46,6 +47,7 @@ class Interview
   declare guest?: Guest;
   declare host?: User;
   declare studio?: Studio;
+  declare channel?: Channel;
 }
 
 Interview.init(
@@ -55,7 +57,13 @@ Interview.init(
       primaryKey: true,
       defaultValue: DataTypes.UUIDV4,
     },
-
+    channel_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: { model: "channels", key: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
+    },
     guest_id: {
       type: DataTypes.UUID,
       allowNull: false,

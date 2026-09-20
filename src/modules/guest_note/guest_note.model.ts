@@ -1,5 +1,6 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../../config/db";
+import Channel from "../admin/channel/channel.model";
 
 import {
   GuestNoteAttributes,
@@ -11,7 +12,7 @@ class GuestNote
   implements GuestNoteAttributes
 {
   declare id: string;
-
+  declare channel_id: string;
   declare description: string | null;
   declare guest_id: string;
 
@@ -21,6 +22,7 @@ class GuestNote
   declare updated_by: string | null;
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
+  declare channel?: Channel;
 }
 
 GuestNote.init(
@@ -31,6 +33,13 @@ GuestNote.init(
       primaryKey: true,
     },
 
+    channel_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: { model: "channels", key: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
+    },
     guest_id: {
       type: DataTypes.UUID,
       allowNull: false,

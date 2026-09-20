@@ -2,7 +2,7 @@ import { InterviewStatus } from "../../constants/interviewStatus";
 
 export interface InterviewAttributes {
   id: string;
-
+  channel_id: string;
   guest_id: string;
   host_id: string;
   studio_id: string;
@@ -39,4 +39,5 @@ export interface InterviewCreationAttributes extends Partial<
   guest_id: string;
   studio_id: string;
   host_id?: string;
+  channel_id: string;
 }

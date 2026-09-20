@@ -4,7 +4,7 @@ import GuestNote from "../guest_note/guest_note.model";
 
 export interface GuestAttributes {
   id: string;
-
+  channel_id: string;
   full_name: string;
   designation?: string | null;
   slug: string;
@@ -50,4 +50,5 @@ export interface GuestCreationAttributes extends Partial<
 > {
   full_name: string;
   rejected?: boolean;
+  channel_id: string;
 }
