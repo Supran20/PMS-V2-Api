@@ -17,6 +17,7 @@ export class PlatformAdminController {
       const platformAdmin = await PlatformAdminService.createPlatformAdmin(
         validated,
         req.user.id,
+        req.file,
       );
 
       res.status(201).json({

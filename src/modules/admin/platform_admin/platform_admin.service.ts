@@ -6,6 +6,7 @@ import User from "../../users/user.model";
 import Channel from "../channel/channel.model";
 import PlatformAdmin from "./platform_admin.model";
 import { PlatformAdminCreationAttributes } from "./platform_admin.interface";
+import Media from "../../media/media.model";
 
 const DEFAULT_CHANNEL_SLUG = "default";
 
@@ -17,6 +18,7 @@ const USER_PUBLIC_ATTRIBUTES = [
   "email",
   "status",
   "mobile_number",
+  "profile_image",
 ];
 
 const USER_INCLUDE = [
@@ -24,6 +26,13 @@ const USER_INCLUDE = [
     model: User,
     as: "user",
     attributes: USER_PUBLIC_ATTRIBUTES,
+    include: [
+      {
+        model: Media,
+        as: "profileImage",
+        attributes: ["id", "media_name", "path", "type"],
+      },
+    ],
   },
 ];
 
@@ -42,6 +51,7 @@ class PlatformAdminService {
   static async createPlatformAdmin(
     data: CreatePlatformAdminInput,
     creatorId: string,
+    file?: Express.Multer.File,
   ): Promise<PlatformAdmin> {
     const transaction: Transaction = await sequelize.transaction();
 
@@ -81,6 +91,31 @@ class PlatformAdminService {
         { transaction },
       );
 
+      if (file) {
+        const originalName = file.originalname;
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, "");
+        const sanitizedMediaName = nameWithoutExt
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+        const mediaPath = `/uploads/media/${file.filename}`;
+
+        const media = await Media.create(
+          {
+            media_name: sanitizedMediaName,
+            path: mediaPath,
+            type: file.mimetype,
+            channel_id: defaultChannel.id,
+            created_by: creatorId,
+            updated_by: creatorId,
+          },
+          { transaction },
+        );
+
+        user.profile_image = media.id;
+        await user.save({ transaction });
+      }
+
       const creationData: PlatformAdminCreationAttributes = {
         user_id: user.id,
         created_by: creatorId,
@@ -95,6 +130,15 @@ class PlatformAdminService {
 
       return await this.getPlatformAdminById(platformAdmin.id);
     } catch (error) {
+      if (file) {
+        const fs = await import("fs");
+        const fullPath = file.path;
+
+        if (fs.existsSync(fullPath)) {
+          fs.unlinkSync(fullPath);
+        }
+      }
+
       await transaction.rollback();
       throw error;
     }

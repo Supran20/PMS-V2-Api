@@ -13,6 +13,7 @@ import settingsRoutes from "./settings/settings.routes";
 import permissionSettingsRoutes from "./settings/permission_settings/permission_set.routes";
 import GuestReapprovalRoutes from "./guest_reapproval_request/guest_reapproval_request.routes";
 import logRoutes from "./log/log.routes";
+import AdminRoutes from "./admin/index";
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use("/settings", settingsRoutes);
 router.use("/permission-sett", permissionSettingsRoutes);
 router.use("/guest-reapproval-requests", GuestReapprovalRoutes);
 router.use("/logs", logRoutes);
+router.use("/admin", AdminRoutes);
 
 export default router;

@@ -7,20 +7,29 @@ import {
   ChannelCreationAttributes,
 } from "./channel.interface";
 import SubscriptionPlan from "../subscription_plan/subscription_plan.model";
+import bcrypt from "bcryptjs";
+import User from "../../users/user.model";
+import Role from "../../roles/role.model";
+import { CreateChannelInput } from "./channel.validation";
 
 class ChannelService {
   //--------------------------------
-  // CREATE Channel
+  // CREATE Channel (+ first Super Admin user)
   //--------------------------------
   static async createChannel(
-    data: ChannelCreationAttributes,
+    data: CreateChannelInput,
     creatorId: string,
-  ): Promise<Channel> {
+  ): Promise<{
+    channel: Channel;
+    admin: { id: string; full_name: string; email: string };
+  }> {
     const transaction: Transaction = await sequelize.transaction();
 
     try {
+      const { admin, ...channelData } = data;
+
       const existing = await Channel.findOne({
-        where: { slug: data.slug },
+        where: { slug: channelData.slug },
         transaction,
       });
 
@@ -28,17 +37,65 @@ class ChannelService {
         throw new ApiError(400, "Channel slug already exists");
       }
 
+      // users.email is globally unique
+      const existingEmail = await User.findOne({
+        where: { email: admin.email },
+        transaction,
+      });
+
+      if (existingEmail) {
+        throw new ApiError(400, "Admin email already exists");
+      }
+
+      const superAdminRole = await Role.findOne({
+        where: { role_name: "Super Admin" },
+        transaction,
+      });
+
+      if (!superAdminRole) {
+        throw new ApiError(
+          500,
+          "Super Admin role not found. Run the role seeder.",
+        );
+      }
+
       const channel = await Channel.create(
         {
-          ...data,
+          ...channelData,
           created_by: creatorId,
           updated_by: creatorId,
         },
         { transaction },
       );
 
+      const hashedPassword = await bcrypt.hash(admin.password, 10);
+
+      const adminUser = await User.create(
+        {
+          full_name: admin.full_name,
+          email: admin.email,
+          password: hashedPassword,
+          mobile_number: admin.mobile_number ?? null,
+          status: "active",
+          channel_id: channel.id,
+        },
+        { transaction },
+      );
+
+      // Super Admin bypasses permission checks in code, so no row-level
+      // permissions are set (same as UserService.createUser).
+      await adminUser.addRole(superAdminRole, { transaction });
+
       await transaction.commit();
-      return channel;
+
+      return {
+        channel,
+        admin: {
+          id: adminUser.id,
+          full_name: adminUser.full_name,
+          email: adminUser.email,
+        },
+      };
     } catch (error) {
       await transaction.rollback();
       throw error;

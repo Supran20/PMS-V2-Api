@@ -11,7 +11,7 @@ export class ChannelController {
     try {
       const validated = createChannelSchema.parse(req.body);
 
-      const channel = await ChannelService.createChannel(
+      const { channel, admin } = await ChannelService.createChannel(
         validated,
         req.user.id,
       );
@@ -19,7 +19,7 @@ export class ChannelController {
       res.status(201).json({
         success: true,
         message: "Channel created successfully",
-        data: channel,
+        data: { ...channel.toJSON(), admin },
       });
     } catch (error: any) {
       res.status(400).json({
