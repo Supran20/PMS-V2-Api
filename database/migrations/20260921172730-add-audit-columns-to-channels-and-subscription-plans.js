@@ -1,6 +1,6 @@
 "use strict";
 
-const TABLES = ["subscription_plans", "channels"];
+const TABLES = ["subscription_plans", "channels", "platform_admins"];
 const AUDIT_COLUMNS = ["created_by", "updated_by"];
 
 module.exports = {

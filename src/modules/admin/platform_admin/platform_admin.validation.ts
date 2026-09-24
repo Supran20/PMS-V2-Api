@@ -15,7 +15,7 @@ export const createPlatformAdminSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 
   status: z.enum(["active", "inactive"]).optional(),
-
+  
   mobile_number: z
     .string()
     .regex(/^\+?[1-9]\d{7,14}$/, "Invalid phone number")
