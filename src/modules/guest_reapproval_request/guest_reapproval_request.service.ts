@@ -142,6 +142,14 @@ class GuestReapprovalRequestService {
           : Promise.resolve(null),
       ]);
 
+      let guestImagePath: string | null = null;
+      if (guest?.profile_image) {
+        const media = await Media.findByPk(guest.profile_image, {
+          transaction,
+        });
+        guestImagePath = media?.path ?? null;
+      }
+
       eventBus.emit(EVENTS.GUEST_REAPPROVAL_REQUESTED, {
         requestId: request.id,
         guestId,
@@ -149,6 +157,7 @@ class GuestReapprovalRequestService {
         requestedByName: requester?.full_name ?? "Unknown User",
         triggerSource,
         proposedHostName: proposedHost?.full_name,
+        guestImagePath,
       });
     }
 
@@ -274,6 +283,12 @@ class GuestReapprovalRequestService {
 
       await transaction.commit();
       const requester = await User.findByPk(request.requested_by);
+
+      let guestImagePath: string | null = null;
+      if (guest.profile_image) {
+        const media = await Media.findByPk(guest.profile_image);
+        guestImagePath = media?.path ?? null;
+      }
       eventBus.emit(EVENTS.GUEST_REAPPROVED, {
         guestId: guest.id,
         guestName: guest.full_name,
@@ -281,6 +296,9 @@ class GuestReapprovalRequestService {
         requestId: request.id,
         requesterEmail: requester?.email,
         requesterName: requester?.full_name,
+        proposedHostId: request.proposed_host_id,
+        guestHostId: guest.host_id,
+        guestImagePath,
       });
 
       return request;
@@ -300,34 +318,72 @@ class GuestReapprovalRequestService {
   ): Promise<GuestReapprovalRequest> {
     await assertCanReview(reviewer);
 
-    const request = await GuestReapprovalRequest.findByPk(id);
-    if (!request) throw new ApiError(404, "Reapproval request not found");
+    const transaction = await sequelize.transaction(); // ✅ wrap for atomicity with the guest update below
 
-    if (request.status !== "pending") {
-      throw new ApiError(400, `Request already ${request.status}`);
+    try {
+      const request = await GuestReapprovalRequest.findByPk(id, {
+        transaction,
+      });
+      if (!request) throw new ApiError(404, "Reapproval request not found");
+
+      if (request.status !== "pending") {
+        throw new ApiError(400, `Request already ${request.status}`);
+      }
+
+      await request.update(
+        {
+          status: "rejected",
+          reviewed_by: reviewer.id,
+          reviewed_at: new Date(),
+          review_note: reviewNote ?? null,
+          updated_by: reviewer.id,
+        },
+        { transaction },
+      );
+
+      const guest = await Guest.findByPk(request.guest_id, { transaction });
+      if (!guest) throw new ApiError(404, "Guest not found");
+
+      // ✅ Mirrors guest.service.ts's rejectGuest: a reapproval rejection
+      // is a real rejection, not just "still unapproved". Sets rejected
+      // true and keeps approved false explicitly.
+      await guest.update(
+        {
+          rejected: true,
+          approved: false,
+          approved_by: reviewer.id,
+          updated_by: reviewer.id,
+        },
+        { transaction },
+      );
+
+      await transaction.commit();
+
+      const requester = await User.findByPk(request.requested_by);
+
+      let guestImagePath: string | null = null;
+      if (guest.profile_image) {
+        const media = await Media.findByPk(guest.profile_image);
+        guestImagePath = media?.path ?? null;
+      }
+
+      eventBus.emit(EVENTS.GUEST_REAPPROVAL_REJECTED, {
+        guestId: request.guest_id,
+        guestName: guest.full_name,
+        reviewerName: reviewer.full_name,
+        requestId: request.id,
+        requesterEmail: requester?.email,
+        requesterName: requester?.full_name,
+        proposedHostId: request.proposed_host_id,
+        guestHostId: guest.host_id,
+        guestImagePath,
+      });
+
+      return request;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
-
-    await request.update({
-      status: "rejected",
-      reviewed_by: reviewer.id,
-      reviewed_at: new Date(),
-      review_note: reviewNote ?? null,
-      updated_by: reviewer.id,
-    });
-
-    const guest = await Guest.findByPk(request.guest_id);
-    const requester = await User.findByPk(request.requested_by);
-
-    eventBus.emit(EVENTS.GUEST_REAPPROVAL_REJECTED, {
-      guestId: request.guest_id,
-      guestName: guest?.full_name ?? "Unknown Guest",
-      reviewerName: reviewer.full_name,
-      requestId: request.id,
-      requesterEmail: requester?.email,
-      requesterName: requester?.full_name,
-    });
-
-    return request;
   }
 
   //--------------------------------

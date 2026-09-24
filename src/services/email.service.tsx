@@ -20,6 +20,7 @@ export async function generateInterviewEmailHtml(
   startTime: string,
   endTime: string,
   studio: string,
+  hasGuestImage?: boolean,
 ): Promise<string> {
   return await render(
     <InterviewEmail
@@ -30,6 +31,7 @@ export async function generateInterviewEmailHtml(
       startTime={startTime}
       endTime={endTime}
       studio={studio}
+      hasGuestImage={hasGuestImage}
     />,
   );
 }
@@ -40,6 +42,7 @@ export async function generateGuestApprovalEmailHtml(
   designation?: string,
   hostName?: string,
   creatorName?: string,
+  hasGuestImage?: boolean,
 ): Promise<string> {
   return render(
     <GuestApprovalEmail
@@ -48,6 +51,7 @@ export async function generateGuestApprovalEmailHtml(
       designation={designation}
       hostName={hostName}
       creatorName={creatorName}
+      hasGuestImage={hasGuestImage}
     />,
   );
 }
@@ -57,6 +61,7 @@ export async function generateGuestStatusEmailHtml(
   guestName: string,
   status: "approved" | "rejected",
   adminName: string,
+  hasGuestImage?: boolean,
 ): Promise<string> {
   return render(
     <GuestStatusEmail
@@ -64,6 +69,7 @@ export async function generateGuestStatusEmailHtml(
       guestName={guestName}
       status={status}
       adminName={adminName}
+      hasGuestImage={hasGuestImage}
     />,
   );
 }
@@ -98,7 +104,9 @@ interface EmailOptions {
   text: string;
   html?: string;
   cc?: string[];
+  bcc?: string[];
   replyTo?: string;
+  attachments?: any[];
 }
 
 /**
@@ -112,10 +120,12 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
       from: `"Real Story Time" <${process.env.GMAIL_USER}>`,
       to: options.to,
       cc: options.cc,
+      bcc: options.bcc,
       replyTo: options.replyTo,
       subject: options.subject,
       text: options.text,
       html: options.html ?? `<p>${options.text}</p>`,
+      attachments: options.attachments,
     });
   } catch (error) {
     console.error("Email sending failed:", error);
@@ -128,6 +138,7 @@ export async function generateGuestReapprovalRequestEmailHtml(
   requestedByName: string,
   triggerSource: "duplicate_guest_attempt" | "repeat_booking",
   proposedHostName?: string,
+  hasGuestImage?: boolean,
 ): Promise<string> {
   return render(
     <GuestReapprovalRequestEmail
@@ -135,6 +146,7 @@ export async function generateGuestReapprovalRequestEmailHtml(
       requestedByName={requestedByName}
       triggerSource={triggerSource}
       proposedHostName={proposedHostName}
+      hasGuestImage={hasGuestImage}
     />,
   );
 }
@@ -146,6 +158,7 @@ export async function generateGuestInterviewEmailHtml(
   startTime: string,
   endTime: string,
   studio: string,
+  hasGuestImage: boolean,
 ): Promise<string> {
   return await render(
     <GuestInterviewEmail

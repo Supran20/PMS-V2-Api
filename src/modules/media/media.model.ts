@@ -1,13 +1,15 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import { sequelize } from "../../config/db";
 import { IMedia } from "./media.interface";
+import Channel from "../admin/channel/channel.model";
 
 export interface MediaCreationAttributes extends Optional<
   IMedia,
-  "id" | "tag_id" | "created_by" | "updated_by" | "created_at" | "updated_at"
+  "id" | "channel_id" | "tag_id" | "created_by" | "updated_by" | "created_at" | "updated_at"
 > {}
 class Media extends Model<IMedia, MediaCreationAttributes> implements IMedia {
   declare id: string;
+  declare channel_id: string;
   declare media_name: string;
   declare path: string;
   declare type: string;
@@ -19,6 +21,7 @@ class Media extends Model<IMedia, MediaCreationAttributes> implements IMedia {
 
   declare created_by: string | null;
   declare updated_by: string | null;
+  declare channel?: Channel;
 }
 
 Media.init(
@@ -28,7 +31,13 @@ Media.init(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-
+    channel_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: { model: "channels", key: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
+    },
     media_name: { type: DataTypes.TEXT, allowNull: false },
     path: { type: DataTypes.STRING, allowNull: false },
     type: { type: DataTypes.STRING, allowNull: false },

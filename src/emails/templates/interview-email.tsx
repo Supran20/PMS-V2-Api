@@ -21,10 +21,16 @@ interface InterviewEmailProps {
   startTime: string;
   endTime: string;
   studio: string;
+  hasGuestImage?: boolean;
 }
 
 const formatTime = (time: string) => {
-  const [hours, minutes] = time.split(":").map(Number);
+  if (!time) return "";
+  const parts = time.split(":");
+  if (parts.length < 2) return time;
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1]);
+  if (isNaN(hours) || isNaN(minutes)) return time;
 
   return new Date(0, 0, 0, hours, minutes).toLocaleTimeString("en-US", {
     hour: "2-digit",
@@ -41,6 +47,7 @@ export default function InterviewEmail({
   startTime,
   endTime,
   studio,
+  hasGuestImage,
 }: InterviewEmailProps) {
   return (
     <Html>
@@ -67,6 +74,19 @@ export default function InterviewEmail({
             <Heading className="text-2xl font-semibold mb-6 text-center">
               {title}
             </Heading>
+
+            {hasGuestImage && (
+              <Section className="text-center mb-6">
+                <Img
+                  src="cid:guestImage"
+                  width="80"
+                  height="80"
+                  alt={guestName}
+                  className="mx-auto rounded-full"
+                  style={{ objectFit: "cover" }}
+                />
+              </Section>
+            )}
 
             <Text className="text-base mb-2">Hello {hostName},</Text>
 

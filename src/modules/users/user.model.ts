@@ -15,6 +15,7 @@ export class User
   implements UserAttributes
 {
   declare id: string;
+  declare channel_id: string;
   declare full_name: string;
   declare email: string;
   declare password: string;
@@ -50,6 +51,13 @@ User.init(
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
+    },
+    channel_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: { model: "channels", key: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
     },
     full_name: {
       type: DataTypes.STRING,

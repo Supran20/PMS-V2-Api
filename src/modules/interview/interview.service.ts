@@ -340,6 +340,14 @@ class InterviewService {
         throw new ApiError(400, "Invalid host, guest or studio");
       }
 
+      let guestImagePath: string | null = null;
+      if (guest.profile_image) {
+        const media = await Media.findByPk(guest.profile_image, {
+          transaction,
+        });
+        guestImagePath = media?.path ?? null;
+      }
+
       const ccEmails = await resolveCcEmails(data.cc_user_ids, transaction);
       const bccEmails = await resolveBccEmails(data.bcc_user_ids, transaction);
 
@@ -360,6 +368,7 @@ class InterviewService {
         ccEmails,
         bccEmails,
         creatorId,
+        guestImagePath,
       });
 
       return interview;
@@ -590,12 +599,7 @@ class InterviewService {
       }
 
       if (data.episode && data.episode !== interview.episode) {
-        await this.reorderEpisodes(
-          id,
-          data.episode,
-          requester.id,
-          transaction,
-        );
+        await this.reorderEpisodes(id, data.episode, requester.id, transaction);
 
         delete data.episode;
       }

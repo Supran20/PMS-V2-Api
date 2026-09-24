@@ -101,6 +101,7 @@ class GuestService {
       // 2️⃣ Create Media (if file uploaded)
       // --------------------------------
       let mediaId: string | null = null;
+      let mediaPath: string | null = null;
 
       if (file) {
         // Generate clean media name from original filename
@@ -111,10 +112,11 @@ class GuestService {
           .toLowerCase()
           .replace(/\s+/g, "-");
 
-        const mediaPath = `/uploads/media/${file.filename}`;
+        mediaPath = `/uploads/media/${file.filename}`;
 
         const media = await Media.create(
           {
+            channel_id: data.channel_id ?? creator.channel_id,
             media_name: sanitizedMediaName,
             path: mediaPath,
             type: file.mimetype,
@@ -195,6 +197,7 @@ class GuestService {
       const guest = await Guest.create(
         {
           ...data,
+          channel_id: data.channel_id ?? creator.channel_id,
           slug,
           profile_image: mediaId,
           host_id: hostId,
@@ -213,6 +216,8 @@ class GuestService {
         guestId: guest.id,
         guestName: guest.full_name,
         creatorName: creator.full_name,
+        guestImagePath: mediaId ? mediaPath : null,
+        hostId,
       });
 
       return guest;
@@ -237,7 +242,7 @@ class GuestService {
   //--------------------------------
   static async getAllGuests(requester?: any): Promise<any[]> {
     const guests = await Guest.findAll({
-      order: [["created_at", "DESC"]],
+      order: [["updated_at", "DESC"]],
       include: [
         {
           model: Media,
@@ -344,7 +349,8 @@ class GuestService {
   static async approveGuest(id: string, approver: any): Promise<Guest> {
     const guest = await Guest.findByPk(id, {
       include: [
-        { model: User, as: "host", attributes: ["full_name", "email"] },
+        { model: User, as: "host", attributes: ["id", "full_name", "email"] },
+        { model: Media, as: "profileImage", attributes: ["path"] },
       ],
     });
 
@@ -356,20 +362,39 @@ class GuestService {
       throw new ApiError(400, "Guest already approved");
     }
 
-    const permission = await PermissionSettings.findOne({
-      where: { permission_type: "guest_approver" },
-    });
+    const isAdminOrSuperAdmin = approver?.roles?.some(
+      (r: any) => r.role_name === "Admin" || r.role_name === "Super Admin",
+    );
 
-    const allowedUserIds = permission?.user_ids ?? [];
+    if (!isAdminOrSuperAdmin) {
+      const permission = await PermissionSettings.findOne({
+        where: { permission_type: "guest_approver" },
+      });
 
-    if (!allowedUserIds.includes(approver.id)) {
-      throw new ApiError(403, "You are not allowed to approve guest");
+      const allowedUserIds = permission?.user_ids ?? [];
+
+      if (!allowedUserIds.includes(approver.id)) {
+        throw new ApiError(403, "You are not allowed to approve guest");
+      }
     }
 
     await guest.update({
       approved: true,
       approved_by: approver.id,
       updated_by: approver.id,
+    });
+
+    const host = (guest as any).host;
+    const profileImage = (guest as any).profileImage;
+
+    eventBus.emit(EVENTS.GUEST_APPROVED, {
+      guestId: guest.id,
+      guestName: guest.full_name,
+      hostId: guest.host_id,
+      hostEmail: host?.email,
+      hostName: host?.full_name,
+      approverName: approver.full_name,
+      guestImagePath: profileImage?.path ?? null,
     });
 
     return guest;
@@ -381,7 +406,8 @@ class GuestService {
   static async rejectGuest(id: string, approver: any): Promise<Guest> {
     const guest = await Guest.findByPk(id, {
       include: [
-        { model: User, as: "host", attributes: ["full_name", "email"] },
+        { model: User, as: "host", attributes: ["id", "full_name", "email"] },
+        { model: Media, as: "profileImage", attributes: ["path"] },
       ],
     });
 
@@ -389,14 +415,20 @@ class GuestService {
       throw new ApiError(404, "Guest not found");
     }
 
-    const permission = await PermissionSettings.findOne({
-      where: { permission_type: "guest_approver" },
-    });
+    const isAdminOrSuperAdmin = approver?.roles?.some(
+      (r: any) => r.role_name === "Admin" || r.role_name === "Super Admin",
+    );
 
-    const allowedUserIds = permission?.user_ids ?? [];
+    if (!isAdminOrSuperAdmin) {
+      const permission = await PermissionSettings.findOne({
+        where: { permission_type: "guest_approver" },
+      });
 
-    if (!allowedUserIds.includes(approver.id)) {
-      throw new ApiError(403, "You are not allowed to reject guest");
+      const allowedUserIds = permission?.user_ids ?? [];
+
+      if (!allowedUserIds.includes(approver.id)) {
+        throw new ApiError(403, "You are not allowed to reject guest");
+      }
     }
 
     await guest.update({
@@ -404,6 +436,19 @@ class GuestService {
       approved: false,
       approved_by: approver.id,
       updated_by: approver.id,
+    });
+
+    const host = (guest as any).host;
+    const profileImage = (guest as any).profileImage;
+
+    eventBus.emit(EVENTS.GUEST_REJECTED, {
+      guestId: guest.id,
+      guestName: guest.full_name,
+      hostId: guest.host_id,
+      hostEmail: host?.email,
+      hostName: host?.full_name,
+      approverName: approver.full_name,
+      guestImagePath: profileImage?.path ?? null,
     });
 
     return guest;
@@ -444,6 +489,7 @@ class GuestService {
 
         const media = await Media.create(
           {
+            channel_id: data.channel_id ?? user.channel_id ?? guest.channel_id,
             media_name: sanitizedMediaName,
             path: mediaPath,
             type: file.mimetype,
