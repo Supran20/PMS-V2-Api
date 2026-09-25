@@ -74,7 +74,7 @@ class PlatformAdminService {
         where: { email: data.email },
         transaction,
         bypassTenantScope: true,
-      } as any);
+      });
 
       if (existingEmail) {
         throw new ApiError(400, "Email already exists");
@@ -94,7 +94,7 @@ class PlatformAdminService {
           status: "active",
           channel_id: defaultChannel.id,
         },
-        { transaction, bypassTenantScope: true } as any,
+        { transaction, bypassTenantScope: true },
       );
 
       if (file) {
@@ -117,7 +117,7 @@ class PlatformAdminService {
             created_by: creatorId,
             updated_by: creatorId,
           },
-          { transaction, bypassTenantScope: true } as any,
+          { transaction, bypassTenantScope: true },
         );
 
         user.profile_image = media.id;

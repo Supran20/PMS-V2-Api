@@ -44,7 +44,7 @@ class ChannelService {
         where: { email: admin.email },
         transaction,
         bypassTenantScope: true,
-      } as any);
+      });
 
       if (existingEmail) {
         throw new ApiError(400, "Admin email already exists");
@@ -85,7 +85,7 @@ class ChannelService {
           status: "active",
           channel_id: channel.id,
         },
-        { transaction, bypassTenantScope: true } as any,
+        { transaction, bypassTenantScope: true },
       );
 
       // Super Admin bypasses permission checks in code, so no row-level
