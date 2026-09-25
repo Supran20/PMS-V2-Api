@@ -2,10 +2,12 @@ import { Router } from "express";
 import { UserController } from "./user.controller";
 import { authorize } from "../../middleware/authorize.middleware";
 import { authenticate } from "../../middleware/authenticate.middleware";
+import { resolveTenant } from "../../middleware/resolveTenant.middleware";
 import { uploadMedia } from "../../middleware/upload.media.middleware";
 
 const router = Router();
 router.use(authenticate);
+router.use(resolveTenant);
 
 router.post("/", authorize("users.create"), uploadMedia, UserController.create);
 

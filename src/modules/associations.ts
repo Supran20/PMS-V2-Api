@@ -387,6 +387,15 @@ export const setupAssociations = () => {
   Channel.hasMany(GuestNote, { foreignKey: "channel_id", as: "guestNotes" });
   GuestNote.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
 
+  Channel.hasMany(GuestReapprovalRequest, {
+    foreignKey: "channel_id",
+    as: "guestReapprovalRequests",
+  });
+  GuestReapprovalRequest.belongsTo(Channel, {
+    foreignKey: "channel_id",
+    as: "channel",
+  });
+
   Channel.hasMany(Studio, { foreignKey: "channel_id", as: "studios" });
   Studio.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
 

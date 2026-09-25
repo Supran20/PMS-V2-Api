@@ -3,10 +3,11 @@ import { MediaController } from "./media.controller";
 import { createMediaSchema, updateMediaSchema } from "./media.validation";
 import validate from "../../middleware/validate.middleware";
 import { authenticate } from "../../middleware/authenticate.middleware";
+import { resolveTenant } from "../../middleware/resolveTenant.middleware";
 import { uploadMedia } from "../../middleware/upload.media.middleware";
 
 const router = Router();
-
+router.use(resolveTenant);
 // Get all media
 router.get("/", authenticate, MediaController.getAllMedia);
 

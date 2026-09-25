@@ -37,11 +37,14 @@ class ChannelService {
         throw new ApiError(400, "Channel slug already exists");
       }
 
-      // users.email is globally unique
+      // users.email is globally unique. bypassTenantScope: true — this
+      // route is platform-wide (no resolveTenant), and we're checking
+      // across ALL channels by design (global uniqueness), not just one.
       const existingEmail = await User.findOne({
         where: { email: admin.email },
         transaction,
-      });
+        bypassTenantScope: true,
+      } as any);
 
       if (existingEmail) {
         throw new ApiError(400, "Admin email already exists");
@@ -70,6 +73,9 @@ class ChannelService {
 
       const hashedPassword = await bcrypt.hash(admin.password, 10);
 
+      // bypassTenantScope: true — no context exists here (platform-wide
+      // route), and channel_id is being set explicitly to the brand-new
+      // channel.id below, so there's nothing for the hook to fill in anyway.
       const adminUser = await User.create(
         {
           full_name: admin.full_name,
@@ -79,7 +85,7 @@ class ChannelService {
           status: "active",
           channel_id: channel.id,
         },
-        { transaction },
+        { transaction, bypassTenantScope: true } as any,
       );
 
       // Super Admin bypasses permission checks in code, so no row-level

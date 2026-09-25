@@ -1,9 +1,11 @@
 import Guest from "../guest/guest.model";
 import User from "../users/user.model";
 import Interview from "../interview/interview.model";
+import Channel from "../admin/channel/channel.model";
 
 export interface GuestReapprovalRequestAttributes {
   id: string;
+  channel_id: string;
 
   guest_id: string;
   requested_by: string;
@@ -31,6 +33,7 @@ export interface GuestReapprovalRequestAttributes {
   reviewer?: User;
   creator?: User;
   updater?: User;
+  channel?: Channel;
 }
 
 export interface GuestReapprovalRequestCreationAttributes extends Partial<
