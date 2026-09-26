@@ -48,7 +48,7 @@ Studio.init(
       allowNull: true,
     },
 
-    slug: { type: DataTypes.STRING, allowNull: false, unique: true },
+    slug: { type: DataTypes.STRING, allowNull: false },
 
     created_by: {
       type: DataTypes.UUID,
@@ -72,6 +72,13 @@ Studio.init(
     tableName: "studios",
     timestamps: true,
     underscored: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ["channel_id", "slug"],
+        name: "studios_channel_id_slug_unique",
+      },
+    ],
   },
 );
 

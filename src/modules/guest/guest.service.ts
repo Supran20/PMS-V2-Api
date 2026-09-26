@@ -9,7 +9,6 @@ import { GuestAttributes } from "./guest.interface";
 import Media from "../media/media.model";
 import GuestNote from "../guest_note/guest_note.model";
 import { generateUniqueSlug } from "../../utils/slugify";
-import PermissionSettings from "../settings/permission_settings/permission_set.model";
 import eventBus from "../../events/eventBus";
 import { EVENTS } from "../../events/events.constants";
 import Tags from "../tags/tags.model";

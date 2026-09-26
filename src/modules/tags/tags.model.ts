@@ -38,7 +38,7 @@ Tags.init(
     },
 
     tag_name: { type: DataTypes.STRING, allowNull: false },
-    slug: { type: DataTypes.STRING, allowNull: false, unique: true },
+    slug: { type: DataTypes.STRING, allowNull: false },
 
     created_by: { type: DataTypes.UUID, allowNull: true },
     updated_by: { type: DataTypes.UUID, allowNull: true },
@@ -49,8 +49,15 @@ Tags.init(
   {
     sequelize,
     tableName: "tags",
-    timestamps: false, // manual timestamps
+    timestamps: false,
     underscored: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ["channel_id", "slug"],
+        name: "tags_channel_id_slug_unique",
+      },
+    ],
   },
 );
 
