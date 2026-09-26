@@ -13,6 +13,7 @@ import eventBus from "../../events/eventBus";
 import { EVENTS } from "../../events/events.constants";
 import Tags from "../tags/tags.model";
 import { fn, col, where as sequelizeWhere } from "sequelize";
+import Permission from "../permissions/permission.model";
 import GuestReapprovalRequestService from "../guest_reapproval_request/guest_reapproval_request.service";
 
 class GuestService {
@@ -342,6 +343,38 @@ class GuestService {
     };
   }
 
+  private static async canUserApproveOrRejectGuest(
+    user: any,
+  ): Promise<boolean> {
+    if (!user) return false;
+
+    const isAdminOrSuperAdmin = user?.roles?.some(
+      (r: any) => r.role_name === "Admin" || r.role_name === "Super Admin",
+    );
+
+    if (isAdminOrSuperAdmin) return true;
+
+    let hasPermission = user?.permissions?.some(
+      (p: any) => p.permission_type === "guest_approver",
+    );
+
+    if (!hasPermission && user?.id) {
+      const userWithPerm = await User.findByPk(user.id, {
+        include: [
+          {
+            model: Permission,
+            as: "permissions",
+            where: { permission_type: "guest_approver" },
+            through: { attributes: [] },
+          },
+        ],
+      });
+      hasPermission = !!userWithPerm;
+    }
+
+    return !!hasPermission;
+  }
+
   //--------------------------------
   // APPROVE Guest
   //--------------------------------
@@ -361,20 +394,9 @@ class GuestService {
       throw new ApiError(400, "Guest already approved");
     }
 
-    const isAdminOrSuperAdmin = approver?.roles?.some(
-      (r: any) => r.role_name === "Admin" || r.role_name === "Super Admin",
-    );
-
-    if (!isAdminOrSuperAdmin) {
-      const permission = await PermissionSettings.findOne({
-        where: { permission_type: "guest_approver" },
-      });
-
-      const allowedUserIds = permission?.user_ids ?? [];
-
-      if (!allowedUserIds.includes(approver.id)) {
-        throw new ApiError(403, "You are not allowed to approve guest");
-      }
+    const canApprove = await GuestService.canUserApproveOrRejectGuest(approver);
+    if (!canApprove) {
+      throw new ApiError(403, "You are not allowed to approve guest");
     }
 
     await guest.update({
@@ -414,20 +436,9 @@ class GuestService {
       throw new ApiError(404, "Guest not found");
     }
 
-    const isAdminOrSuperAdmin = approver?.roles?.some(
-      (r: any) => r.role_name === "Admin" || r.role_name === "Super Admin",
-    );
-
-    if (!isAdminOrSuperAdmin) {
-      const permission = await PermissionSettings.findOne({
-        where: { permission_type: "guest_approver" },
-      });
-
-      const allowedUserIds = permission?.user_ids ?? [];
-
-      if (!allowedUserIds.includes(approver.id)) {
-        throw new ApiError(403, "You are not allowed to reject guest");
-      }
+    const canReject = await GuestService.canUserApproveOrRejectGuest(approver);
+    if (!canReject) {
+      throw new ApiError(403, "You are not allowed to reject guest");
     }
 
     await guest.update({

@@ -15,7 +15,7 @@ export interface GuestNoteAttributes {
 
 export interface GuestNoteCreationAttributes extends Omit<
   GuestNoteAttributes,
-  "id" | "created_at" | "updated_at"
+  "id" | "channel_id" | "created_at" | "updated_at"
 > {
-  channel_id: string;
+  channel_id?: string;
 }

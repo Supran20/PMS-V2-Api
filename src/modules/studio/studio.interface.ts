@@ -14,6 +14,6 @@ export interface StudioAttributes {
 export interface StudioCreationAttributes extends Partial<
   Omit<StudioAttributes, "id">
 > {
-  channel_id: string;
   studio_name: string;
+  channel_id?: string;
 }

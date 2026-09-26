@@ -39,5 +39,5 @@ export interface InterviewCreationAttributes extends Partial<
   guest_id: string;
   studio_id: string;
   host_id?: string;
-  channel_id: string;
+  channel_id?: string;
 }

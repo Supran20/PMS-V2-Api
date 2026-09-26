@@ -5,7 +5,7 @@ import Channel from "../admin/channel/channel.model";
 
 export interface TagCreationAttributes extends Optional<
   ITag,
-  "id" | "created_by" | "updated_by" | "created_at" | "updated_at"
+  "id" | "channel_id" | "created_by" | "updated_by" | "created_at" | "updated_at"
 > {}
 
 class Tags extends Model<ITag, TagCreationAttributes> implements ITag {
