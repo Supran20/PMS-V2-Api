@@ -68,9 +68,12 @@ class PlatformAdminService {
         );
       }
 
+      // bypassTenantScope: true — platform-wide route, no context yet, and
+      // this is a genuinely global uniqueness check across all channels.
       const existingEmail = await User.findOne({
         where: { email: data.email },
         transaction,
+        bypassTenantScope: true,
       });
 
       if (existingEmail) {
@@ -79,6 +82,9 @@ class PlatformAdminService {
 
       const hashedPassword = await bcrypt.hash(data.password, 10);
 
+      // bypassTenantScope: true — channel_id is set explicitly below to the
+      // Default Channel, so the hook has nothing to add and would otherwise
+      // just throw for lack of context.
       const user = await User.create(
         {
           full_name: data.full_name,
@@ -88,7 +94,7 @@ class PlatformAdminService {
           status: "active",
           channel_id: defaultChannel.id,
         },
-        { transaction },
+        { transaction, bypassTenantScope: true },
       );
 
       if (file) {
@@ -100,6 +106,8 @@ class PlatformAdminService {
           .replace(/\s+/g, "-");
         const mediaPath = `/uploads/media/${file.filename}`;
 
+        // bypassTenantScope: true — same reasoning as the User.create above;
+        // channel_id is explicit (Default Channel), no context exists here.
         const media = await Media.create(
           {
             media_name: sanitizedMediaName,
@@ -109,7 +117,7 @@ class PlatformAdminService {
             created_by: creatorId,
             updated_by: creatorId,
           },
-          { transaction },
+          { transaction, bypassTenantScope: true },
         );
 
         user.profile_image = media.id;

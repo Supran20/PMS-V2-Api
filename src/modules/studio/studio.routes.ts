@@ -3,11 +3,13 @@ import { StudioController } from "./studio.controller";
 import { createStudioSchema, updateStudioSchema } from "./studio.validation";
 import validate from "../../middleware/validate.middleware";
 import { authenticate } from "../../middleware/authenticate.middleware";
+import { resolveTenant } from "../../middleware/resolveTenant.middleware";
 import { authorize } from "../../middleware/authorize.middleware";
 
 const router = Router();
 
 router.use(authenticate);
+router.use(resolveTenant);
 
 router.post(
   "/",

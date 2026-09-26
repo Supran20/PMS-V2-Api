@@ -3,11 +3,13 @@ import TagController from "./tags.controller";
 import { createTagSchema, updateTagSchema } from "./tags.validation";
 import { authorize } from "../../middleware/authorize.middleware";
 import { authenticate } from "../../middleware/authenticate.middleware";
+import { resolveTenant } from "../../middleware/resolveTenant.middleware";
 import validate from "../../middleware/validate.middleware";
 
 const router = Router();
 
 router.use(authenticate);
+router.use(resolveTenant);
 
 // Create a tag
 router.post(

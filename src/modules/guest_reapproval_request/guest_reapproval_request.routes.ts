@@ -6,8 +6,11 @@ import {
   createGuestReapprovalRequestSchema,
   reviewGuestReapprovalRequestSchema,
 } from "./guest_reapproval_request.validation";
+import { resolveTenant } from "../../middleware/resolveTenant.middleware";
 
 const router = Router();
+router.use(resolveTenant);
+
 router.post(
   "/",
   authenticate,

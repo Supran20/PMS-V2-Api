@@ -6,6 +6,7 @@ import Permission from "../modules/permissions/permission.model";
 
 export interface AuthRequest extends Request {
   user?: any;
+  channel?: any;
 }
 
 export const authenticate = async (
@@ -26,9 +27,10 @@ export const authenticate = async (
       id: string;
     };
 
-    // 🔥 Load user with roles + row-level permissions in ONE query.
-    // Permissions are user-scoped (source of truth), NOT derived from
-    // role.permissions — role is loaded only to check the Super Admin bypass.
+    // bypassTenantScope: true — this runs BEFORE resolveTenant, so there is
+    // no channel context yet. We're looking the user up BY id, which is
+    // already a hard scope on its own; resolveTenant (right after this
+    // middleware, on tenant routes) is what enforces channel_id from here on.
     const user = await User.findByPk(decoded.id, {
       include: [
         {
@@ -42,7 +44,8 @@ export const authenticate = async (
           through: { attributes: [] },
         },
       ],
-    });
+      bypassTenantScope: true,
+    } as any);
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });

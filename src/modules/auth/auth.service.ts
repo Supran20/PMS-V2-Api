@@ -31,7 +31,12 @@ export class AuthService {
 
   /* ================= LOGIN ================= */
   static async login(email: string, password: string) {
-    const user = await User.findOne({ where: { email } });
+    // bypassTenantScope: true — no channel context exists yet; the whole
+    // point of this query is to find out which channel the user is in.
+    const user = await User.findOne({
+      where: { email },
+      bypassTenantScope: true,
+    } as any);
     if (!user) {
       throw new Error("User not found");
     }
@@ -51,6 +56,7 @@ export class AuthService {
         const { accessToken, refreshToken } = this.generateTokens({
           id: user.id,
           email: user.email,
+          channel_id: user.channel_id,
         });
 
         return { accessToken, refreshToken };
@@ -115,6 +121,7 @@ export class AuthService {
     const { accessToken, refreshToken } = this.generateTokens({
       id: user.id,
       email: user.email,
+      channel_id: user.channel_id,
     });
 
     return { accessToken, refreshToken };
@@ -126,7 +133,11 @@ export class AuthService {
     const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!) as {
       email: string;
     };
-    const user = await User.findOne({ where: { email: decoded.email } });
+    // bypassTenantScope: true — same reasoning as login(): no context yet.
+    const user = await User.findOne({
+      where: { email: decoded.email },
+      bypassTenantScope: true,
+    } as any);
 
     if (!user) throw new Error("User not found");
     if (!user.otp || user.otp !== otp) throw new Error("Invalid OTP");
@@ -155,6 +166,7 @@ export class AuthService {
     const { accessToken, refreshToken } = this.generateTokens({
       id: user.id,
       email: user.email,
+      channel_id: user.channel_id,
     });
 
     return { accessToken, refreshToken };
@@ -165,7 +177,11 @@ export class AuthService {
     const decoded = jwt.verify(tempToken, process.env.JWT_SECRET_KEY!) as {
       email: string;
     };
-    const user = await User.findOne({ where: { email: decoded.email } });
+    // bypassTenantScope: true — same reasoning as login().
+    const user = await User.findOne({
+      where: { email: decoded.email },
+      bypassTenantScope: true,
+    } as any);
 
     if (!user) throw new Error("User not found");
 
@@ -210,15 +226,23 @@ export class AuthService {
         id: string;
         email: string;
         username: string;
+        channel_id: string;
       };
 
-      const user = await User.findOne({ where: { id: decoded.id } });
+      // bypassTenantScope: true — same reasoning as login(); we deliberately
+      // re-fetch channel_id fresh from the DB below rather than trusting
+      // decoded.channel_id, in case the user was ever moved between channels.
+      const user = await User.findOne({
+        where: { id: decoded.id },
+        bypassTenantScope: true,
+      } as any);
       if (!user) throw new Error("User not found");
 
       const newAccessToken = jwt.sign(
         {
           id: user.id,
           email: user.email,
+          channel_id: user.channel_id,
         },
         process.env.JWT_SECRET_KEY!,
         { expiresIn: ACCESS_TOKEN_EXPIRY },
@@ -232,6 +256,9 @@ export class AuthService {
 
   /* ================= ME (IMPORTANT) ================= */
   static async getMeWithPermissions(userId: string) {
+    // bypassTenantScope: true — /auth/me is mounted under /auth, which (per
+    // the routing decisions) does NOT run resolveTenant, so there is no
+    // context here either. Scoping by primary key id is already exact.
     const user = await User.findByPk(userId, {
       attributes: [
         "id",
@@ -261,7 +288,8 @@ export class AuthService {
           attributes: ["id", "media_name", "path", "type", "tag_id"],
         },
       ],
-    });
+      bypassTenantScope: true,
+    } as any);
 
     if (!user) return null;
 

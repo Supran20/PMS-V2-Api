@@ -2,6 +2,7 @@ import http from "http";
 import app from "./app";
 import connect, { sequelize } from "./config/db";
 import { setupAssociations } from "./modules/associations";
+import { setupTenantScoping } from "./modules/tenant-scoping";
 
 const PORT = process.env.PORT || 4000;
 
@@ -12,6 +13,7 @@ const startServer = async () => {
     const server = http.createServer(app); //Wraps express inside Node HTTP server
 
     setupAssociations();
+    setupTenantScoping();
 
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);

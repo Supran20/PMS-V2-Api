@@ -1,5 +1,6 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../../config/db";
+import Channel from "../admin/channel/channel.model";
 import {
   GuestReapprovalRequestAttributes,
   GuestReapprovalRequestCreationAttributes,
@@ -13,6 +14,7 @@ class GuestReapprovalRequest
   implements GuestReapprovalRequestAttributes
 {
   declare id: string;
+  declare channel_id: string;
 
   declare guest_id: string;
   declare requested_by: string;
@@ -31,6 +33,8 @@ class GuestReapprovalRequest
 
   declare readonly created_at: Date;
   declare readonly updated_at: Date;
+
+  declare channel?: Channel;
 }
 
 GuestReapprovalRequest.init(
@@ -39,6 +43,14 @@ GuestReapprovalRequest.init(
       type: DataTypes.UUID,
       primaryKey: true,
       defaultValue: DataTypes.UUIDV4,
+    },
+
+    channel_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: { model: "channels", key: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE",
     },
 
     guest_id: {

@@ -6,10 +6,12 @@ import {
   createInterviewSchema,
   updateInterviewSchema,
 } from "./interview.validation";
+import { resolveTenant } from "../../middleware/resolveTenant.middleware";
 import validate from "../../middleware/validate.middleware";
 
 const router = Router();
 router.use(authenticate);
+router.use(resolveTenant);
 
 router.post(
   "/",

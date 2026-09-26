@@ -10,8 +10,6 @@ import Guest from "./guest/guest.model";
 import Studio from "./studio/studio.model";
 import Interview from "./interview/interview.model";
 import GuestNote from "./guest_note/guest_note.model";
-import Settings from "./settings/settings.model";
-import PermissionSettings from "./settings/permission_settings/permission_set.model";
 import GuestReapprovalRequest from "./guest_reapproval_request/guest_reapproval_request.model";
 import Log from "./log/log.model";
 import Channel from "./admin/channel/channel.model";
@@ -262,31 +260,6 @@ export const setupAssociations = () => {
   });
 
   //------------------------------------------------
-  // SETTINGS ASSOCIATIONS
-  //------------------------------------------------
-  Settings.belongsTo(User, { as: "creator", foreignKey: "created_by" });
-  Settings.belongsTo(User, { as: "updater", foreignKey: "updated_by" });
-
-  //------------------------------------------------
-  // PERMISSIONS SETTINGS ASSOCIATIONS
-  //------------------------------------------------
-
-  PermissionSettings.belongsTo(Settings, {
-    foreignKey: "settings_id",
-    as: "settings",
-  });
-
-  PermissionSettings.belongsTo(User, {
-    foreignKey: "created_by",
-    as: "creator",
-  });
-
-  PermissionSettings.belongsTo(User, {
-    foreignKey: "updated_by",
-    as: "updater",
-  });
-
-  //------------------------------------------------
   // GUEST REAPPROVAL REQUEST ASSOCIATIONS
   //------------------------------------------------
   GuestReapprovalRequest.belongsTo(Guest, {
@@ -386,6 +359,15 @@ export const setupAssociations = () => {
 
   Channel.hasMany(GuestNote, { foreignKey: "channel_id", as: "guestNotes" });
   GuestNote.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
+
+  Channel.hasMany(GuestReapprovalRequest, {
+    foreignKey: "channel_id",
+    as: "guestReapprovalRequests",
+  });
+  GuestReapprovalRequest.belongsTo(Channel, {
+    foreignKey: "channel_id",
+    as: "channel",
+  });
 
   Channel.hasMany(Studio, { foreignKey: "channel_id", as: "studios" });
   Studio.belongsTo(Channel, { foreignKey: "channel_id", as: "channel" });
