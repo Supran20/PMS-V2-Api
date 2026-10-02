@@ -5,7 +5,7 @@ import { tenantContext } from "../context/tenant-context";
 /**
  * Attaches channel_id scoping hooks to a tenanted model:
  *  - beforeFind:        AND-filters every read by the current channel_id
- *  - beforeCreate:      forces channel_id on the new instance (ignores any
+ *  - beforeValidate:    forces channel_id on the new instance (ignores any
  *                        client-supplied channel_id on the payload)
  *  - beforeBulkCreate:  same, for Model.bulkCreate([...])
  *  - beforeBulkUpdate:  AND-filters Model.update({...}, { where }) by channel_id
@@ -36,7 +36,7 @@ export function applyTenantScopeHooks(model: ModelStatic<Model>) {
       : { channel_id: channelId };
   });
 
-  model.addHook("beforeCreate", (instance: any, options: any) => {
+  model.addHook("beforeValidate", (instance: any, options: any) => {
     if (options.bypassTenantScope) return;
 
     const channelId = tenantContext.getChannelId();

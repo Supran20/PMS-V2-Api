@@ -8,6 +8,7 @@ import Permission from "../../modules/permissions/permission.model";
 import { sendEmail } from "../../services/email.service";
 import { generateOtpEmailHtml } from "../../services/email.service";
 import { sendSms } from "../../services/sms.service";
+import PlatformAdmin from "../../modules/admin/platform_admin/platform_admin.model";
 
 const ACCESS_TOKEN_EXPIRY = "8h";
 const REFRESH_TOKEN_EXPIRY = "8h";
@@ -298,10 +299,16 @@ export class AuthService {
     // Row-level, user-scoped permissions — the actual source of truth.
     const permissions = user.permissions?.map((p) => p.permission_type) ?? [];
 
+    // PlatformAdmin isn't a tenant-scoped model, so no bypassTenantScope needed.
+    const platformAdmin = await PlatformAdmin.findOne({
+      where: { user_id: userId },
+    });
+
     return {
       ...user.toJSON(),
       roles,
       permissions,
+      is_platform_admin: !!platformAdmin,
     };
   }
 }

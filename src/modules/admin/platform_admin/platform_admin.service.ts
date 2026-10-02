@@ -121,7 +121,7 @@ class PlatformAdminService {
         );
 
         user.profile_image = media.id;
-        await user.save({ transaction });
+        await user.save({ transaction, bypassTenantScope: true } as any);
       }
 
       const creationData: PlatformAdminCreationAttributes = {
