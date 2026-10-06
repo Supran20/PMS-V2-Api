@@ -48,6 +48,12 @@ export class AuthService {
       throw new Error("Invalid credentials");
     }
 
+    if (user.status === "inactive") {
+      throw new Error(
+        "Your account is inactive. Please contact an administrator.",
+      );
+    }
+
     const now = new Date();
 
     if (user.enable_otp_login && user.remember_until) {
@@ -64,7 +70,7 @@ export class AuthService {
       } else {
         // cleanup expired remember
         user.remember_until = null;
-        await user.save();
+        await user.save({ bypassTenantScope: true } as any);
       }
     }
 
@@ -75,7 +81,7 @@ export class AuthService {
 
       user.otp = otp;
       user.otp_expires_at = otpExpiry;
-      await user.save();
+      await user.save({ bypassTenantScope: true } as any);
 
       // Send OTP via Email
       if (user.otp_in_mail) {
@@ -141,15 +147,21 @@ export class AuthService {
     } as any);
 
     if (!user) throw new Error("User not found");
+    if (user.status === "inactive") {
+      throw new Error(
+        "Your account is inactive. Please contact an administrator.",
+      );
+    }
     if (!user.otp || user.otp !== otp) throw new Error("Invalid OTP");
 
     if (!user.otp_expires_at || new Date() > new Date(user.otp_expires_at)) {
       user.otp = null;
       user.otp_expires_at = null;
-      await user.save();
+      await user.save({ bypassTenantScope: true } as any);
       throw new Error("OTP expired. Please request a new one.");
     }
 
+    // OTP is valid: clear it (saved once, below, with the remember setting)
     user.otp = null;
     user.otp_expires_at = null;
 
@@ -162,8 +174,7 @@ export class AuthService {
       user.remember_until = null;
     }
 
-    await user.save();
-
+    await user.save({ bypassTenantScope: true } as any);
     const { accessToken, refreshToken } = this.generateTokens({
       id: user.id,
       email: user.email,
@@ -185,13 +196,18 @@ export class AuthService {
     } as any);
 
     if (!user) throw new Error("User not found");
+    if (user.status === "inactive") {
+      throw new Error(
+        "Your account is inactive. Please contact an administrator.",
+      );
+    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000); // 5 MINUTES
 
     user.otp = otp;
     user.otp_expires_at = otpExpiry;
-    await user.save();
+    await user.save({ bypassTenantScope: true } as any);
 
     if (user.otp_in_mail) {
       const html = await generateOtpEmailHtml(otp);
@@ -238,6 +254,18 @@ export class AuthService {
         bypassTenantScope: true,
       } as any);
       if (!user) throw new Error("User not found");
+
+      if (user.status === "inactive") {
+        throw new Error(
+          "Your account is inactive. Please contact an administrator.",
+        );
+      }
+
+      if (user.status === "inactive") {
+        throw new Error(
+          "Your account is inactive. Please contact an administrator.",
+        );
+      }
 
       const newAccessToken = jwt.sign(
         {

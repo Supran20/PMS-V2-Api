@@ -19,6 +19,9 @@ const USER_PUBLIC_ATTRIBUTES = [
   "status",
   "mobile_number",
   "profile_image",
+  "enable_otp_login",
+  "otp_in_mail",
+  "otp_in_sms",
 ];
 
 const USER_INCLUDE = [
@@ -41,6 +44,20 @@ export interface CreatePlatformAdminInput {
   email: string;
   password: string;
   mobile_number?: string | null;
+  status?: "active" | "inactive";
+  enable_otp_login?: boolean;
+  otp_in_mail?: boolean;
+  otp_in_sms?: boolean;
+}
+
+export interface UpdatePlatformAdminInput {
+  full_name?: string;
+  mobile_number?: string | null;
+  password?: string;
+  status?: "active" | "inactive";
+  enable_otp_login?: boolean;
+  otp_in_mail?: boolean;
+  otp_in_sms?: boolean;
 }
 
 class PlatformAdminService {
@@ -91,8 +108,11 @@ class PlatformAdminService {
           email: data.email,
           password: hashedPassword,
           mobile_number: data.mobile_number ?? null,
-          status: "active",
           channel_id: defaultChannel.id,
+          status: data.status ?? "active",
+          enable_otp_login: data.enable_otp_login ?? false,
+          otp_in_mail: data.enable_otp_login ? !!data.otp_in_mail : false,
+          otp_in_sms: data.enable_otp_login ? !!data.otp_in_sms : false,
         },
         { transaction, bypassTenantScope: true },
       );
@@ -121,7 +141,7 @@ class PlatformAdminService {
         );
 
         user.profile_image = media.id;
-        await user.save({ transaction, bypassTenantScope: true } as any);
+        await user.save({ transaction, bypassTenantScope: true });
       }
 
       const creationData: PlatformAdminCreationAttributes = {
@@ -224,6 +244,136 @@ class PlatformAdminService {
       await transaction.rollback();
       throw error;
     }
+  }
+
+  //--------------------------------
+  // UPDATE Platform Admin
+  // Updates the linked User's profile fields (+ optional new profile image).
+  //--------------------------------
+  static async updatePlatformAdmin(
+    id: string,
+    data: UpdatePlatformAdminInput,
+    updaterId: string,
+    file?: Express.Multer.File,
+  ): Promise<PlatformAdmin> {
+    const transaction: Transaction = await sequelize.transaction();
+
+    try {
+      const platformAdmin = await PlatformAdmin.findByPk(id, { transaction });
+
+      if (!platformAdmin) {
+        throw new ApiError(404, "Platform admin not found");
+      }
+
+      // bypassTenantScope: true — platform-wide route, no channel context.
+      const user = await User.findByPk(platformAdmin.user_id, {
+        transaction,
+        bypassTenantScope: true,
+      });
+
+      if (!user) {
+        throw new ApiError(404, "User not found");
+      }
+
+      if (data.status === "inactive" && platformAdmin.user_id === updaterId) {
+        throw new ApiError(403, "You cannot deactivate your own account");
+      }
+
+      if (data.full_name !== undefined) {
+        user.full_name = data.full_name;
+      }
+
+      if (data.mobile_number !== undefined) {
+        user.mobile_number = data.mobile_number || null;
+      }
+
+      if (data.status !== undefined) {
+        user.status = data.status;
+      }
+
+      // Password reset: also drop any "remember me" session
+      if (data.password) {
+        user.password = await bcrypt.hash(data.password, 10);
+        user.remember_until = null;
+      }
+
+      // OTP settings, validated against the FINAL state
+      const finalOtp = data.enable_otp_login ?? user.enable_otp_login;
+
+      if (finalOtp) {
+        const finalMail = data.otp_in_mail ?? user.otp_in_mail;
+        const finalSms = data.otp_in_sms ?? user.otp_in_sms;
+
+        if (!!finalMail === !!finalSms) {
+          throw new ApiError(
+            400,
+            "Select exactly one OTP method (Email or SMS)",
+          );
+        }
+        if (finalSms && !user.mobile_number) {
+          throw new ApiError(400, "Mobile number is required for SMS OTP");
+        }
+
+        user.enable_otp_login = true;
+        user.otp_in_mail = !!finalMail;
+        user.otp_in_sms = !!finalSms;
+      } else {
+        user.enable_otp_login = false;
+        user.otp_in_mail = false;
+        user.otp_in_sms = false;
+      }
+
+      // Clear stale OTP/session state when OTP is off or the account is inactive
+      if (!user.enable_otp_login || user.status === "inactive") {
+        user.otp = null;
+        user.otp_expires_at = null;
+        user.remember_until = null;
+      }
+
+      if (file) {
+        const nameWithoutExt = file.originalname.replace(/\.[^/.]+$/, "");
+        const sanitizedMediaName = nameWithoutExt
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-");
+
+        // channel_id is explicit (the user's own channel), so bypass is safe.
+        const media = await Media.create(
+          {
+            media_name: sanitizedMediaName,
+            path: `/uploads/media/${file.filename}`,
+            type: file.mimetype,
+            channel_id: user.channel_id,
+            created_by: updaterId,
+            updated_by: updaterId,
+          },
+          { transaction, bypassTenantScope: true },
+        );
+
+        user.profile_image = media.id;
+      }
+
+      await user.save({ transaction, bypassTenantScope: true });
+
+      platformAdmin.updated_by = updaterId;
+      await platformAdmin.save({ transaction });
+
+      await transaction.commit();
+    } catch (error) {
+      if (file) {
+        const fs = await import("fs");
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      }
+
+      await transaction.rollback();
+      throw error;
+    }
+
+    // Outside the try so a failure here can't trigger a rollback on an
+    // already-committed transaction.
+    return await this.getPlatformAdminById(id);
   }
 }
 

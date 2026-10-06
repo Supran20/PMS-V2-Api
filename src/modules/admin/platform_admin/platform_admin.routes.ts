@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { PlatformAdminController } from "./platform_admin.controller";
-import { createPlatformAdminSchema } from "./platform_admin.validation";
+import {
+  createPlatformAdminSchema,
+  updatePlatformAdminSchema,
+} from "./platform_admin.validation";
 import validate from "../../../middleware/validate.middleware";
 import { authenticate } from "../../../middleware/authenticate.middleware";
 import { authorizePlatformAdmin } from "../../../middleware/authorizePlatformAdmin.middleware";
@@ -21,6 +24,13 @@ router.post(
 router.get("/", PlatformAdminController.getAll);
 
 router.get("/:id", PlatformAdminController.getById);
+
+router.put(
+  "/:id",
+  uploadMedia,
+  validate(updatePlatformAdminSchema),
+  PlatformAdminController.update,
+);
 
 router.delete("/:id", PlatformAdminController.delete);
 
