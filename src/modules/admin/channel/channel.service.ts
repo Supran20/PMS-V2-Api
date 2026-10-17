@@ -13,6 +13,16 @@ import {
 } from "./channel.validation";
 
 const SUSPENDABLE_STATUSES = ["active", "trial"];
+const DEFAULT_CHANNEL_SLUG = "default";
+
+const assertNotDefaultChannel = (channel: Channel) => {
+  if (channel.slug === DEFAULT_CHANNEL_SLUG) {
+    throw new ApiError(
+      403,
+      "The default channel is locked and cannot be modified",
+    );
+  }
+};
 
 class ChannelService {
   //--------------------------------
@@ -185,6 +195,8 @@ class ChannelService {
       throw new ApiError(404, "Channel not found");
     }
 
+    assertNotDefaultChannel(channel);
+
     return channel;
   }
 
@@ -224,6 +236,8 @@ class ChannelService {
       throw new ApiError(404, "Channel not found");
     }
 
+    assertNotDefaultChannel(channel);
+
     await channel.update({
       channel_name: data.channel_name,
       updated_by: updaterId,
@@ -245,6 +259,8 @@ class ChannelService {
     if (!channel) {
       throw new ApiError(404, "Channel not found");
     }
+
+    assertNotDefaultChannel(channel);
 
     if (channel.status === "cancelled") {
       throw new ApiError(409, "Cannot change the plan of a cancelled channel");
@@ -277,6 +293,8 @@ class ChannelService {
     if (!channel) {
       throw new ApiError(404, "Channel not found");
     }
+
+    assertNotDefaultChannel(channel);
 
     if (!SUSPENDABLE_STATUSES.includes(channel.status)) {
       throw new ApiError(409, `Cannot suspend a ${channel.status} channel`);
@@ -327,6 +345,8 @@ class ChannelService {
     if (!channel) {
       throw new ApiError(404, "Channel not found");
     }
+
+    assertNotDefaultChannel(channel);
 
     await channel.destroy();
   }
