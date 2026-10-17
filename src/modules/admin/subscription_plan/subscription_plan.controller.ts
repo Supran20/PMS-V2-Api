@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { AuthRequest } from "../../../middleware/authenticate.middleware";
+import { sendError } from "../../../middleware/error-handlers/sendError";
 import SubscriptionPlanService from "./subscription_plan.service";
 import {
   createSubscriptionPlanSchema,
@@ -24,11 +25,8 @@ export class SubscriptionPlanController {
         message: "Subscription plan created successfully",
         data: plan,
       });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -39,12 +37,9 @@ export class SubscriptionPlanController {
     try {
       const plans = await SubscriptionPlanService.getAllSubscriptionPlans();
 
-      res.status(200).json({
-        success: true,
-        data: plans,
-      });
-    } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(200).json({ success: true, data: plans });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -57,12 +52,9 @@ export class SubscriptionPlanController {
         String(req.params.id),
       );
 
-      res.status(200).json({
-        success: true,
-        data: plan,
-      });
-    } catch (error: any) {
-      res.status(404).json({ success: false, message: error.message });
+      res.status(200).json({ success: true, data: plan });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -84,8 +76,8 @@ export class SubscriptionPlanController {
         message: "Subscription plan updated successfully",
         data: plan,
       });
-    } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -102,8 +94,8 @@ export class SubscriptionPlanController {
         success: true,
         message: "Subscription plan deleted successfully",
       });
-    } catch (error: any) {
-      res.status(404).json({ success: false, message: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 }
