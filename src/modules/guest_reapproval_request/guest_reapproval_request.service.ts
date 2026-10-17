@@ -5,7 +5,7 @@ import Guest from "../guest/guest.model";
 import User from "../users/user.model";
 import Interview from "../interview/interview.model";
 import Media from "../media/media.model";
-import PermissionSettings from "../settings/permission_settings/permission_set.model";
+import Permission from "../permissions/permission.model";
 import ApiError from "../../middleware/error-handlers/ApiError";
 import eventBus from "../../events/eventBus";
 import { EVENTS } from "../../events/events.constants";
@@ -29,20 +29,31 @@ const REVIEW_INCLUDE = [
 ];
 
 // Mirrors GuestService.approveGuest/rejectGuest's permission check
-// (same "guest_approver" PermissionSettings list), with an added Admin
-// bypass — guest.service.ts's version doesn't special-case Admin today,
-// which looks like a latent gap there too; worth aligning both later.
 async function assertCanReview(reviewer: any): Promise<void> {
-  const isAdmin = reviewer?.roles?.some((r: any) => r.role_name === "Admin");
-  if (isAdmin) return;
+  const isAdminOrSuperAdmin = reviewer?.roles?.some(
+    (r: any) => r.role_name === "Admin" || r.role_name === "Super Admin",
+  );
+  if (isAdminOrSuperAdmin) return;
 
-  const permission = await PermissionSettings.findOne({
-    where: { permission_type: "guest_approver" },
-  });
+  let hasPermission = reviewer?.permissions?.some(
+    (p: any) => p.permission_type === "guest_approver",
+  );
 
-  const allowedUserIds = permission?.user_ids ?? [];
+  if (!hasPermission && reviewer?.id) {
+    const userWithPerm = await User.findByPk(reviewer.id, {
+      include: [
+        {
+          model: Permission,
+          as: "permissions",
+          where: { permission_type: "guest_approver" },
+          through: { attributes: [] },
+        },
+      ],
+    });
+    hasPermission = !!userWithPerm;
+  }
 
-  if (!allowedUserIds.includes(reviewer.id)) {
+  if (!hasPermission) {
     throw new ApiError(
       403,
       "You are not allowed to review guest reapproval requests",

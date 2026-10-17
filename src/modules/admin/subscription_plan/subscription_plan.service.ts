@@ -1,6 +1,7 @@
 import { sequelize } from "../../../config/db";
-import { Transaction } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import SubscriptionPlan from "./subscription_plan.model";
+import Channel from "../channel/channel.model";
 import ApiError from "../../../middleware/error-handlers/ApiError";
 import {
   SubscriptionPlanAttributes,
@@ -45,10 +46,20 @@ class SubscriptionPlanService {
   }
 
   //--------------------------------
-  // GET All Subscription Plans
+  // GET All Subscription Plans (+ channel_count per plan)
   //--------------------------------
   static async getAllSubscriptionPlans(): Promise<SubscriptionPlan[]> {
     return await SubscriptionPlan.findAll({
+      attributes: {
+        include: [
+          [
+            sequelize.literal(
+              `(SELECT COUNT(*)::int FROM channels WHERE channels.subscription_plan_id = "SubscriptionPlan"."id")`,
+            ),
+            "channel_count",
+          ],
+        ],
+      },
       order: [["created_at", "DESC"]],
     });
   }
@@ -80,6 +91,16 @@ class SubscriptionPlanService {
       throw new ApiError(404, "Subscription plan not found");
     }
 
+    if (data.plan_name && data.plan_name !== plan.plan_name) {
+      const duplicate = await SubscriptionPlan.findOne({
+        where: { plan_name: data.plan_name, id: { [Op.ne]: id } },
+      });
+
+      if (duplicate) {
+        throw new ApiError(400, "Plan name already exists");
+      }
+    }
+
     await plan.update({
       ...data,
       updated_by: updaterId,
@@ -96,6 +117,19 @@ class SubscriptionPlanService {
 
     if (!plan) {
       throw new ApiError(404, "Subscription plan not found");
+    }
+
+    // The FK is ON DELETE SET NULL, so without this check deleting a plan
+    // would silently strip it from every channel using it.
+    const channelCount = await Channel.count({
+      where: { subscription_plan_id: id },
+    });
+
+    if (channelCount > 0) {
+      throw new ApiError(
+        409,
+        `Plan is assigned to ${channelCount} channel(s). Deactivate it instead.`,
+      );
     }
 
     await plan.destroy();

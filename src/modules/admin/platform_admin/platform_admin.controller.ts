@@ -4,6 +4,7 @@ import PlatformAdminService from "./platform_admin.service";
 import {
   createPlatformAdminSchema,
   platformAdminIdParamSchema,
+  updatePlatformAdminSchema,
 } from "./platform_admin.validation";
 
 export class PlatformAdminController {
@@ -82,6 +83,34 @@ export class PlatformAdminController {
       res.status(200).json({
         success: true,
         message: "Platform admin access revoked successfully",
+      });
+    } catch (error: any) {
+      res.status(error.statusCode ?? 400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  //--------------------------------
+  // UPDATE Platform Admin
+  //--------------------------------
+  static async update(req: AuthRequest, res: Response) {
+    try {
+      const { id } = platformAdminIdParamSchema.parse(req.params);
+      const validated = updatePlatformAdminSchema.parse(req.body);
+
+      const platformAdmin = await PlatformAdminService.updatePlatformAdmin(
+        id,
+        validated,
+        req.user.id,
+        req.file,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Platform admin updated successfully",
+        data: platformAdmin,
       });
     } catch (error: any) {
       res.status(error.statusCode ?? 400).json({

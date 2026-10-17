@@ -49,9 +49,9 @@ class TagService {
     let slug = tag.slug;
 
     // regenerate slug if changed
-    if (data.slug) {
+    if (data.slug && data.slug !== tag.slug) {
       slug = await generateUniqueSlug(data.slug, Tags);
-    } else if (data.tag_name) {
+    } else if (data.tag_name && data.tag_name !== tag.tag_name) {
       slug = await generateUniqueSlug(data.tag_name, Tags);
     }
 

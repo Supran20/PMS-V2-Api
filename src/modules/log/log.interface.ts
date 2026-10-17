@@ -21,5 +21,5 @@ export interface LogCreationAttributes extends Partial<
   event_type: string;
   recipient_email: string;
   status: "pending" | "sent" | "failed";
-  channel_id: string;
+  channel_id?: string;
 }

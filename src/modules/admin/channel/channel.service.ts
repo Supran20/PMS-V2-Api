@@ -2,17 +2,47 @@ import { sequelize } from "../../../config/db";
 import { Transaction } from "sequelize";
 import Channel from "./channel.model";
 import ApiError from "../../../middleware/error-handlers/ApiError";
-import {
-  ChannelAttributes,
-  ChannelCreationAttributes,
-} from "./channel.interface";
 import SubscriptionPlan from "../subscription_plan/subscription_plan.model";
 import bcrypt from "bcryptjs";
 import User from "../../users/user.model";
 import Role from "../../roles/role.model";
-import { CreateChannelInput } from "./channel.validation";
+import {
+  AssignPlanInput,
+  CreateChannelInput,
+  UpdateChannelInput,
+} from "./channel.validation";
+
+const SUSPENDABLE_STATUSES = ["active", "trial"];
+const DEFAULT_CHANNEL_SLUG = "default";
+
+const assertNotDefaultChannel = (channel: Channel) => {
+  if (channel.slug === DEFAULT_CHANNEL_SLUG) {
+    throw new ApiError(
+      403,
+      "The default channel is locked and cannot be modified",
+    );
+  }
+};
 
 class ChannelService {
+  //--------------------------------
+  // Helpers
+  //--------------------------------
+  private static async assertPlanAssignable(
+    planId: string,
+    transaction?: Transaction,
+  ): Promise<void> {
+    const plan = await SubscriptionPlan.findByPk(planId, { transaction });
+
+    if (!plan) {
+      throw new ApiError(400, "Subscription plan not found");
+    }
+
+    if (!plan.is_active) {
+      throw new ApiError(400, "Subscription plan is not active");
+    }
+  }
+
   //--------------------------------
   // CREATE Channel (+ first Super Admin user)
   //--------------------------------
@@ -35,6 +65,25 @@ class ChannelService {
 
       if (existing) {
         throw new ApiError(400, "Channel slug already exists");
+      }
+
+      if (channelData.status === "trial") {
+        if (!channelData.trial_ends_at) {
+          throw new ApiError(
+            400,
+            "Trial end date is required for a trial channel",
+          );
+        }
+        if (channelData.trial_ends_at <= new Date()) {
+          throw new ApiError(400, "Trial end date must be in the future");
+        }
+      }
+
+      if (channelData.subscription_plan_id) {
+        await ChannelService.assertPlanAssignable(
+          channelData.subscription_plan_id,
+          transaction,
+        );
       }
 
       // users.email is globally unique. bypassTenantScope: true — this
@@ -146,15 +195,17 @@ class ChannelService {
       throw new ApiError(404, "Channel not found");
     }
 
+    assertNotDefaultChannel(channel);
+
     return channel;
   }
 
   //--------------------------------
-  // UPDATE Channel by Slug
+  // UPDATE Channel by Slug (name only)
   //--------------------------------
   static async updateChannelBySlug(
     slug: string,
-    data: Partial<ChannelAttributes>,
+    data: UpdateChannelInput,
     updaterId: string,
   ): Promise<Channel> {
     const channel = await Channel.findOne({ where: { slug } });
@@ -164,7 +215,7 @@ class ChannelService {
     }
 
     await channel.update({
-      ...data,
+      channel_name: data.channel_name,
       updated_by: updaterId,
     });
 
@@ -172,11 +223,11 @@ class ChannelService {
   }
 
   //--------------------------------
-  // UPDATE Channel
+  // UPDATE Channel (name only)
   //--------------------------------
   static async updateChannel(
     id: string,
-    data: Partial<ChannelAttributes>,
+    data: UpdateChannelInput,
     updaterId: string,
   ): Promise<Channel> {
     const channel = await Channel.findByPk(id);
@@ -185,12 +236,104 @@ class ChannelService {
       throw new ApiError(404, "Channel not found");
     }
 
+    assertNotDefaultChannel(channel);
+
     await channel.update({
-      ...data,
+      channel_name: data.channel_name,
       updated_by: updaterId,
     });
 
     return channel;
+  }
+
+  //--------------------------------
+  // ASSIGN Plan
+  //--------------------------------
+  static async assignPlan(
+    id: string,
+    data: AssignPlanInput,
+    updaterId: string,
+  ): Promise<Channel> {
+    const channel = await Channel.findByPk(id);
+
+    if (!channel) {
+      throw new ApiError(404, "Channel not found");
+    }
+
+    assertNotDefaultChannel(channel);
+
+    if (channel.status === "cancelled") {
+      throw new ApiError(409, "Cannot change the plan of a cancelled channel");
+    }
+
+    if (data.subscription_plan_id) {
+      await ChannelService.assertPlanAssignable(data.subscription_plan_id);
+    }
+
+    await channel.update({
+      subscription_plan_id: data.subscription_plan_id,
+      ...(data.subscription_status !== undefined && {
+        subscription_status: data.subscription_status,
+      }),
+      ...(data.trial_ends_at !== undefined && {
+        trial_ends_at: data.trial_ends_at,
+      }),
+      updated_by: updaterId,
+    });
+
+    return ChannelService.getChannelById(id);
+  }
+
+  //--------------------------------
+  // SUSPEND Channel
+  //--------------------------------
+  static async suspendChannel(id: string, updaterId: string): Promise<Channel> {
+    const channel = await Channel.findByPk(id);
+
+    if (!channel) {
+      throw new ApiError(404, "Channel not found");
+    }
+
+    assertNotDefaultChannel(channel);
+
+    if (!SUSPENDABLE_STATUSES.includes(channel.status)) {
+      throw new ApiError(409, `Cannot suspend a ${channel.status} channel`);
+    }
+
+    await channel.update({ status: "suspended", updated_by: updaterId });
+
+    return ChannelService.getChannelById(id);
+  }
+
+  //--------------------------------
+  // REACTIVATE Channel
+  //--------------------------------
+  static async reactivateChannel(
+    id: string,
+    updaterId: string,
+  ): Promise<Channel> {
+    const channel = await Channel.findByPk(id);
+
+    if (!channel) {
+      throw new ApiError(404, "Channel not found");
+    }
+
+    if (channel.status !== "suspended") {
+      throw new ApiError(409, "Only suspended channels can be reactivated");
+    }
+
+    // A channel that never got a plan and is still inside its trial window
+    // goes back to trial. Everything else goes back to active.
+    const hasPlan = !!channel.subscription_plan_id;
+    const trialStillRunning =
+      !!channel.trial_ends_at && channel.trial_ends_at > new Date();
+
+    await channel.update({
+      status: !hasPlan && trialStillRunning ? "trial" : "active",
+      updated_by: updaterId,
+    });
+
+    return ChannelService.getChannelById(id);
   }
 
   //--------------------------------
@@ -202,6 +345,8 @@ class ChannelService {
     if (!channel) {
       throw new ApiError(404, "Channel not found");
     }
+
+    assertNotDefaultChannel(channel);
 
     await channel.destroy();
   }

@@ -30,6 +30,7 @@ class UserService {
     try {
       const existingEmail = await User.findOne({
         where: { email: data.email },
+        bypassTenantScope: true,
         transaction,
       });
 
@@ -276,6 +277,18 @@ class UserService {
 
       if (!user) {
         throw new ApiError(404, "User not found");
+      }
+
+      if (data.email && data.email !== user.email) {
+        const existingEmail = await User.findOne({
+          where: { email: data.email },
+          bypassTenantScope: true,
+          transaction,
+        });
+
+        if (existingEmail) {
+          throw new ApiError(400, "Email already exists");
+        }
       }
 
       if (data.password) {

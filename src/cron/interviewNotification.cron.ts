@@ -6,7 +6,7 @@ import Interview from "../modules/interview/interview.model";
 import Guest from "../modules/guest/guest.model";
 import User from "../modules/users/user.model";
 import Studio from "../modules/studio/studio.model";
-import PermissionSettings from "../modules/settings/permission_settings/permission_set.model";
+import Permission from "../modules/permissions/permission.model";
 import Channel from "../modules/admin/channel/channel.model";
 
 import { tenantContext } from "../context/tenant-context";
@@ -104,20 +104,15 @@ export default function interviewNotificationCron() {
 
                 const text = `Interview at ${interview.start_time} (in ${timeRemaining})`;
 
-                // NOTE: permission_settings is not a tenanted model today —
-                // this stays global across channels until/unless it's added
-                // to the tenanted-model list. Flagging, not fixing here.
-                const permission = await PermissionSettings.findOne({
-                  where: { permission_type: "interview_cc" },
-                });
-
-                if (!permission?.user_ids?.length) continue;
-
-                // Scoped by the hooks to this channel — so a cc_user id from
-                // another channel silently won't resolve, rather than leaking
-                // cross-tenant emails.
                 const ccUsers = await User.findAll({
-                  where: { id: permission.user_ids },
+                  include: [
+                    {
+                      model: Permission,
+                      as: "permissions",
+                      where: { permission_type: "interview_cc" },
+                      through: { attributes: [] },
+                    },
+                  ],
                   attributes: ["email"],
                 });
 

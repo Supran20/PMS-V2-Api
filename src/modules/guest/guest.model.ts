@@ -65,7 +65,6 @@ Guest.init(
     slug: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
     },
 
     bio: {
@@ -166,6 +165,13 @@ Guest.init(
     tableName: "guests",
     timestamps: true,
     underscored: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ["channel_id", "slug"],
+        name: "guests_channel_id_slug_unique",
+      },
+    ],
   },
 );
 

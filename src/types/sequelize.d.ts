@@ -19,4 +19,10 @@ declare module "sequelize" {
   interface DestroyOptions {
     bypassTenantScope?: boolean;
   }
+  interface SaveOptions {
+    bypassTenantScope?: boolean;
+  }
+  interface InstanceUpdateOptions {
+    bypassTenantScope?: boolean;
+  }
 }

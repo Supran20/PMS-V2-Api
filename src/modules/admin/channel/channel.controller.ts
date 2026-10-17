@@ -1,7 +1,14 @@
 import { Response } from "express";
+import { ZodError } from "zod";
 import { AuthRequest } from "../../../middleware/authenticate.middleware";
+import ApiError from "../../../middleware/error-handlers/ApiError";
 import ChannelService from "./channel.service";
-import { createChannelSchema, updateChannelSchema } from "./channel.validation";
+import {
+  assignPlanSchema,
+  createChannelSchema,
+  updateChannelSchema,
+} from "./channel.validation";
+import { sendError } from "../../../middleware/error-handlers/sendError";
 
 export class ChannelController {
   //--------------------------------
@@ -21,11 +28,8 @@ export class ChannelController {
         message: "Channel created successfully",
         data: { ...channel.toJSON(), admin },
       });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -36,12 +40,9 @@ export class ChannelController {
     try {
       const channels = await ChannelService.getAllChannels();
 
-      res.status(200).json({
-        success: true,
-        data: channels,
-      });
-    } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(200).json({ success: true, data: channels });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -54,12 +55,9 @@ export class ChannelController {
         String(req.params.id),
       );
 
-      res.status(200).json({
-        success: true,
-        data: channel,
-      });
-    } catch (error: any) {
-      res.status(404).json({ success: false, message: error.message });
+      res.status(200).json({ success: true, data: channel });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -72,12 +70,9 @@ export class ChannelController {
         String(req.params.slug),
       );
 
-      res.status(200).json({
-        success: true,
-        data: channel,
-      });
-    } catch (error: any) {
-      res.status(404).json({ success: false, message: error.message });
+      res.status(200).json({ success: true, data: channel });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -99,8 +94,8 @@ export class ChannelController {
         message: "Channel updated successfully",
         data: channel,
       });
-    } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -122,8 +117,71 @@ export class ChannelController {
         message: "Channel updated successfully",
         data: channel,
       });
-    } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message });
+    } catch (error) {
+      sendError(res, error);
+    }
+  }
+
+  //--------------------------------
+  // ASSIGN Plan
+  //--------------------------------
+  static async assignPlan(req: AuthRequest, res: Response) {
+    try {
+      const validated = assignPlanSchema.parse(req.body);
+
+      const channel = await ChannelService.assignPlan(
+        String(req.params.id),
+        validated,
+        req.user.id,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Subscription plan updated successfully",
+        data: channel,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  }
+
+  //--------------------------------
+  // SUSPEND Channel
+  //--------------------------------
+  static async suspend(req: AuthRequest, res: Response) {
+    try {
+      const channel = await ChannelService.suspendChannel(
+        String(req.params.id),
+        req.user.id,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Channel suspended successfully",
+        data: channel,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  }
+
+  //--------------------------------
+  // REACTIVATE Channel
+  //--------------------------------
+  static async reactivate(req: AuthRequest, res: Response) {
+    try {
+      const channel = await ChannelService.reactivateChannel(
+        String(req.params.id),
+        req.user.id,
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Channel reactivated successfully",
+        data: channel,
+      });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 
@@ -138,8 +196,8 @@ export class ChannelController {
         success: true,
         message: "Channel deleted successfully",
       });
-    } catch (error: any) {
-      res.status(404).json({ success: false, message: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   }
 }

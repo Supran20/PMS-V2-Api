@@ -51,6 +51,10 @@ export const authenticate = async (
       return res.status(401).json({ message: "User not found" });
     }
 
+    if (user.status === "inactive") {
+      return res.status(401).json({ message: "Account is inactive" });
+    }
+
     req.user = user;
 
     next();

@@ -8,6 +8,7 @@ import Permission from "../../modules/permissions/permission.model";
 import { sendEmail } from "../../services/email.service";
 import { generateOtpEmailHtml } from "../../services/email.service";
 import { sendSms } from "../../services/sms.service";
+import PlatformAdmin from "../../modules/admin/platform_admin/platform_admin.model";
 
 const ACCESS_TOKEN_EXPIRY = "8h";
 const REFRESH_TOKEN_EXPIRY = "8h";
@@ -47,6 +48,12 @@ export class AuthService {
       throw new Error("Invalid credentials");
     }
 
+    if (user.status === "inactive") {
+      throw new Error(
+        "Your account is inactive. Please contact an administrator.",
+      );
+    }
+
     const now = new Date();
 
     if (user.enable_otp_login && user.remember_until) {
@@ -63,7 +70,7 @@ export class AuthService {
       } else {
         // cleanup expired remember
         user.remember_until = null;
-        await user.save();
+        await user.save({ bypassTenantScope: true } as any);
       }
     }
 
@@ -74,7 +81,7 @@ export class AuthService {
 
       user.otp = otp;
       user.otp_expires_at = otpExpiry;
-      await user.save();
+      await user.save({ bypassTenantScope: true } as any);
 
       // Send OTP via Email
       if (user.otp_in_mail) {
@@ -140,15 +147,21 @@ export class AuthService {
     } as any);
 
     if (!user) throw new Error("User not found");
+    if (user.status === "inactive") {
+      throw new Error(
+        "Your account is inactive. Please contact an administrator.",
+      );
+    }
     if (!user.otp || user.otp !== otp) throw new Error("Invalid OTP");
 
     if (!user.otp_expires_at || new Date() > new Date(user.otp_expires_at)) {
       user.otp = null;
       user.otp_expires_at = null;
-      await user.save();
+      await user.save({ bypassTenantScope: true } as any);
       throw new Error("OTP expired. Please request a new one.");
     }
 
+    // OTP is valid: clear it (saved once, below, with the remember setting)
     user.otp = null;
     user.otp_expires_at = null;
 
@@ -161,8 +174,7 @@ export class AuthService {
       user.remember_until = null;
     }
 
-    await user.save();
-
+    await user.save({ bypassTenantScope: true } as any);
     const { accessToken, refreshToken } = this.generateTokens({
       id: user.id,
       email: user.email,
@@ -184,13 +196,18 @@ export class AuthService {
     } as any);
 
     if (!user) throw new Error("User not found");
+    if (user.status === "inactive") {
+      throw new Error(
+        "Your account is inactive. Please contact an administrator.",
+      );
+    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000); // 5 MINUTES
 
     user.otp = otp;
     user.otp_expires_at = otpExpiry;
-    await user.save();
+    await user.save({ bypassTenantScope: true } as any);
 
     if (user.otp_in_mail) {
       const html = await generateOtpEmailHtml(otp);
@@ -237,6 +254,18 @@ export class AuthService {
         bypassTenantScope: true,
       } as any);
       if (!user) throw new Error("User not found");
+
+      if (user.status === "inactive") {
+        throw new Error(
+          "Your account is inactive. Please contact an administrator.",
+        );
+      }
+
+      if (user.status === "inactive") {
+        throw new Error(
+          "Your account is inactive. Please contact an administrator.",
+        );
+      }
 
       const newAccessToken = jwt.sign(
         {
@@ -298,10 +327,16 @@ export class AuthService {
     // Row-level, user-scoped permissions — the actual source of truth.
     const permissions = user.permissions?.map((p) => p.permission_type) ?? [];
 
+    // PlatformAdmin isn't a tenant-scoped model, so no bypassTenantScope needed.
+    const platformAdmin = await PlatformAdmin.findOne({
+      where: { user_id: userId },
+    });
+
     return {
       ...user.toJSON(),
       roles,
       permissions,
+      is_platform_admin: !!platformAdmin,
     };
   }
 }

@@ -7,7 +7,6 @@ import Role from "../../modules/roles/role.model";
 import Guest from "../../modules/guest/guest.model";
 import Interview from "../../modules/interview/interview.model";
 import Studio from "../../modules/studio/studio.model";
-import PermissionSettings from "../../modules/settings/permission_settings/permission_set.model";
 import GuestReapprovalRequest from "../../modules/guest_reapproval_request/guest_reapproval_request.model";
 
 import {
