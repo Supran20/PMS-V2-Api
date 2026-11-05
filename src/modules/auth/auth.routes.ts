@@ -7,17 +7,34 @@ import {
   refreshTokenSchema,
 } from "./auth.validation";
 import { authenticate } from "../../middleware/authenticate.middleware";
+import {
+  loginLimiter,
+  verifyOtpLimiter,
+  resendOtpLimiter,
+  refreshLimiter,
+} from "../../middleware/rateLimit.middleware";
 
 const router = Router();
 
-router.post("/login", validate(loginSchema), AuthController.login);
+router.post(
+  "/login",
+  loginLimiter,
+  validate(loginSchema),
+  AuthController.login,
+);
 
-router.post("/verify-otp", validate(verifyOtpSchema), AuthController.verifyOtp);
+router.post(
+  "/verify-otp",
+  verifyOtpLimiter,
+  validate(verifyOtpSchema),
+  AuthController.verifyOtp,
+);
 
-router.get("/resend-otp", AuthController.resendOtp);
+router.get("/resend-otp", resendOtpLimiter, AuthController.resendOtp);
 
 router.post(
   "/refresh-token",
+  refreshLimiter,
   validate(refreshTokenSchema),
   AuthController.refreshToken,
 );

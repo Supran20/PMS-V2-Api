@@ -31,4 +31,8 @@ export default class ApiError extends Error {
   static internal(message = "Internal Server Error") {
     return new ApiError(500, message);
   }
+
+  static tooManyRequests(message = "Too many requests, please try again later") {
+    return new ApiError(429, message);
+  }
 }

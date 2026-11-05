@@ -6,6 +6,7 @@ import { authenticate } from "../../middleware/authenticate.middleware";
 import { resolveTenant } from "../../middleware/resolveTenant.middleware";
 import { authorize } from "../../middleware/authorize.middleware";
 import { uploadLogo } from "../../middleware/upload.logo.middleware";
+import { uploadLimiter } from "../../middleware/rateLimit.middleware";
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.put(
 
 router.put(
   "/me/logo",
+  uploadLimiter,
   authorize("settings.edit"),
   uploadLogo,
   ChannelProfileController.uploadLogo,

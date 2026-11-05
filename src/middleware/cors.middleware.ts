@@ -21,4 +21,5 @@ export const corsMiddleware = cors({
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Retry-After", "RateLimit", "RateLimit-Policy"],
 });

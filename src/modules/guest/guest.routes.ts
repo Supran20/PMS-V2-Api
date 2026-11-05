@@ -6,6 +6,7 @@ import { authenticate } from "../../middleware/authenticate.middleware";
 import validate from "../../middleware/validate.middleware";
 import { resolveTenant } from "../../middleware/resolveTenant.middleware";
 import { uploadMedia } from "../../middleware/upload.media.middleware";
+import { uploadLimiter } from "../../middleware/rateLimit.middleware";
 
 const router = Router();
 router.use(authenticate);
@@ -14,6 +15,7 @@ router.use(resolveTenant);
 router.post(
   "/",
   authorize("guests.create"),
+  uploadLimiter,
   uploadMedia,
   validate(createGuestSchema),
   GuestController.create,
@@ -39,6 +41,7 @@ router.patch(
 router.put(
   "/slug/:slug",
   authorize("guests.edit"),
+  uploadLimiter,
   uploadMedia,
   validate(updateGuestSchema),
   GuestController.updateBySlug,

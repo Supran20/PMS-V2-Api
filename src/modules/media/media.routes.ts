@@ -5,6 +5,7 @@ import validate from "../../middleware/validate.middleware";
 import { authenticate } from "../../middleware/authenticate.middleware";
 import { resolveTenant } from "../../middleware/resolveTenant.middleware";
 import { uploadMedia } from "../../middleware/upload.media.middleware";
+import { uploadLimiter } from "../../middleware/rateLimit.middleware";
 
 const router = Router();
 router.use(resolveTenant);
@@ -18,6 +19,7 @@ router.get("/:id", authenticate, MediaController.getMediaById);
 router.post(
   "/",
   authenticate,
+  uploadLimiter,
   uploadMedia,
   validate(createMediaSchema),
   MediaController.createMedia,
@@ -27,6 +29,7 @@ router.post(
 router.put(
   "/:id",
   authenticate,
+  uploadLimiter,
   uploadMedia,
   validate(updateMediaSchema),
   MediaController.updateMedia,

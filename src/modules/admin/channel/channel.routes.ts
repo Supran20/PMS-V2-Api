@@ -8,10 +8,12 @@ import {
 import validate from "../../../middleware/validate.middleware";
 import { authenticate } from "../../../middleware/authenticate.middleware";
 import { authorizePlatformAdmin } from "../../../middleware/authorizePlatformAdmin.middleware";
+import { adminLimiter } from "../../../middleware/rateLimit.middleware";
 
 const router = Router();
 
 router.use(authenticate);
+router.use(adminLimiter);
 router.use(authorizePlatformAdmin);
 
 router.post("/", validate(createChannelSchema), ChannelController.create);
