@@ -3,6 +3,7 @@ import { sequelize } from "../../../config/db";
 import {
   ChannelAttributes,
   ChannelCreationAttributes,
+  ChannelSocialLinks,
 } from "./channel.interface";
 import User from "../../users/user.model";
 import SubscriptionPlan from "../subscription_plan/subscription_plan.model";
@@ -18,6 +19,10 @@ class Channel
   declare subscription_plan_id: string | null;
   declare subscription_status: string | null;
   declare trial_ends_at: Date | null;
+
+  declare logo_media_id: string | null;
+  declare description: string | null;
+  declare social_links: ChannelSocialLinks | null;
 
   declare created_by: string | null;
   declare updated_by: string | null;
@@ -48,6 +53,16 @@ Channel.init(
     },
     subscription_status: { type: DataTypes.STRING, allowNull: true },
     trial_ends_at: { type: DataTypes.DATE, allowNull: true },
+
+    logo_media_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: "media", key: "id" },
+      onUpdate: "CASCADE",
+      onDelete: "SET NULL",
+    },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    social_links: { type: DataTypes.JSONB, allowNull: true },
 
     created_by: {
       type: DataTypes.UUID,

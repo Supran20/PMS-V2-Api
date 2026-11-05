@@ -1,3 +1,10 @@
+export interface ChannelSocialLinks {
+  youtube?: string;
+  spotify?: string;
+  instagram?: string;
+  website?: string;
+}
+
 export interface ChannelAttributes {
   id: string;
   channel_name: string;
@@ -6,6 +13,10 @@ export interface ChannelAttributes {
   subscription_plan_id?: string | null;
   subscription_status?: string | null; // trialing, active, past_due, cancelled
   trial_ends_at?: Date | null;
+
+  logo_media_id?: string | null;
+  description?: string | null;
+  social_links?: ChannelSocialLinks | null;
 
   created_by?: string | null;
   updated_by?: string | null;

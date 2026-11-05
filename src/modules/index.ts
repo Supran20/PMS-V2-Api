@@ -12,6 +12,7 @@ import guestNoteRoutes from "./guest_note/guest_note.routes";
 import GuestReapprovalRoutes from "./guest_reapproval_request/guest_reapproval_request.routes";
 import logRoutes from "./log/log.routes";
 import AdminRoutes from "./admin/index";
+import channelProfileRoutes from "./channel_profile/channel_profile.routes";
 
 const router = Router();
 
@@ -28,5 +29,6 @@ router.use("/guest_notes", guestNoteRoutes);
 router.use("/guest-reapproval-requests", GuestReapprovalRoutes);
 router.use("/logs", logRoutes);
 router.use("/admin", AdminRoutes);
+router.use("/channel", channelProfileRoutes);
 
 export default router;

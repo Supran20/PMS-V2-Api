@@ -9,6 +9,7 @@ import { sendEmail } from "../../services/email.service";
 import { generateOtpEmailHtml } from "../../services/email.service";
 import { sendSms } from "../../services/sms.service";
 import PlatformAdmin from "../../modules/admin/platform_admin/platform_admin.model";
+import ChannelProfileService from "../channel_profile/channel_profile.service";
 
 const ACCESS_TOKEN_EXPIRY = "8h";
 const REFRESH_TOKEN_EXPIRY = "8h";
@@ -294,6 +295,7 @@ export class AuthService {
         "full_name",
         "email",
         "status",
+        "channel_id",
         "created_at",
         "updated_at",
       ],
@@ -332,11 +334,25 @@ export class AuthService {
       where: { user_id: userId },
     });
 
+    // Channel branding for the sidebar/header. Kept to the few fields the
+    // layout needs, so it does not depend on settings.view.
+    const channel = user.channel_id
+      ? await ChannelProfileService.getProfile(user.channel_id)
+      : null;
+
     return {
       ...user.toJSON(),
       roles,
       permissions,
       is_platform_admin: !!platformAdmin,
+      channel: channel
+        ? {
+            id: channel.id,
+            channel_name: channel.channel_name,
+            slug: channel.slug,
+            logo: channel.logo,
+          }
+        : null,
     };
   }
 }
